@@ -57,7 +57,7 @@ Prepare the Mandakini study-area vector layers and publish clean artifacts under
 
 * **Task 1.3: Static Route Stub for Demo**
 * Generate `gis/outputs/evac_route_tilwara.geojson` representing a clear, realistic road path from Tilwara village center uphill to `SHELTER_01`.
-* *Action:* Push all GeoJSON files directly to `gis/outputs/` and notify **B** so they can render them on Leaflet/Mapbox.
+* *Action:* Push all GeoJSON files directly to `gis/outputs/` and notify Frontend builder so they can render them on Leaflet/Mapbox.
 
 
 

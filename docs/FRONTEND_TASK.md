@@ -13,7 +13,7 @@ Build the tactical command deck, live telemetry display, map layers, evacuation 
 
 ---
 
-#### Milestone 1: College Demo Deliverables (Deadline: September 7)
+#### Milestone 1: College Demo Deliverables 
 
 *Focus: A fully running FastAPI server with mock-first endpoints, an active WebSocket broadcaster, on-demand cloudburst surge injection, and automated state-transition logic.*
 

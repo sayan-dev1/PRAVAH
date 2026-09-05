@@ -1,4 +1,4 @@
-# PRAVAH
+# PRAVAH - Predictive River & Valley Alert Hub
 
 Real-time flash-flood monitoring, risk assessment, and evacuation coordination for the Mandakini watershed.
 
