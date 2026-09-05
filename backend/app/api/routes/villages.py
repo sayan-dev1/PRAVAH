@@ -1,0 +1,1 @@
+"""Village risk routes."""
