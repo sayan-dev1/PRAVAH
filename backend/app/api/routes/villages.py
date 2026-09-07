@@ -4,9 +4,12 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.state import state_engine
 from app.models.village import VillageStatus
+from app.models.village import DetailedRisk
 from app.services.hydro_rules import lead_time_minutes
+from app.services.ml_inference import detailed_risk
 
 router = APIRouter(prefix="/villages")
+risk_router = APIRouter(prefix="/risk")
 
 _VILLAGES = [
 	("VIL_TILWARA", "Tilwara", 1840, "Extreme upstream rainfall accumulation"),
@@ -35,3 +38,12 @@ def get_villages() -> list[VillageStatus]:
 @router.get("/{village_id}", response_model=VillageStatus)
 def get_village(village_id: str) -> VillageStatus:
 	return village_status(village_id)
+
+
+@risk_router.get("/detailed/{village_id}", response_model=DetailedRisk)
+def get_detailed_risk(village_id: str) -> DetailedRisk:
+	if not any(row[0] == village_id for row in _VILLAGES):
+		raise HTTPException(status_code=404, detail="Village not found")
+	reading = state_engine.latest()
+	return detailed_risk(village_id, reading.rainfall_mm_hr if reading else 14,
+		reading.soil_moisture_pct if reading else 65)

@@ -5,6 +5,7 @@ import json
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import DATA_DIR
+from app.services.routing_engine import route_geojson
 
 router = APIRouter()
 
@@ -13,8 +14,7 @@ router = APIRouter()
 def get_evacuation_route(village_id: str):
 	if village_id != "VIL_TILWARA":
 		raise HTTPException(status_code=404, detail="Evacuation route not found")
-	with (DATA_DIR / "evac_route_tilwara.geojson").open(encoding="utf-8") as route_file:
-		return json.load(route_file)
+	return route_geojson(village_id)
 
 
 @router.get("/geojson/{layer_name}")

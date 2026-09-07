@@ -14,3 +14,9 @@ class TelemetryPayload(BaseModel):
 	soil_moisture_pct: float
 	status: str
 
+
+class TelemetryIngestResponse(BaseModel):
+	accepted: bool
+	reason: str | None = None
+	telemetry: TelemetryPayload | None = None
+

@@ -6,6 +6,7 @@ from app.core.state import state_engine
 from app.models.simulation import SimulationRequest, SimulationResponse
 from app.models.telemetry import TelemetryPayload
 from app.services.hydro_rules import risk_level
+from app.services.alert_dispatcher import dispatch_sms, tactical_message
 from app.services.stream_worker import stream
 
 router = APIRouter(prefix="/simulate")
@@ -25,3 +26,10 @@ async def trigger_cloudburst(request: SimulationRequest | None = None) -> Simula
 def reset_simulation() -> dict[str, str]:
 	state_engine.set_surge(False)
 	return {"status": "reset"}
+
+
+@router.post("/alert")
+def create_tactical_alert() -> dict[str, str | None]:
+	reading = state_engine.latest()
+	rate = reading.rate_of_rise_cm_min if reading else 3.8
+	return dispatch_sms(tactical_message(rate))

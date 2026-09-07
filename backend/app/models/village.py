@@ -12,3 +12,16 @@ class VillageStatus(BaseModel):
 	population_at_risk: int
 	primary_driver: str
 
+
+class RiskFactor(BaseModel):
+	feature: str
+	impact_pct: int
+
+
+class DetailedRisk(BaseModel):
+	village_id: str
+	predicted_tier: str
+	probabilities: dict[str, float]
+	primary_driver: str
+	factors: list[RiskFactor]
+
