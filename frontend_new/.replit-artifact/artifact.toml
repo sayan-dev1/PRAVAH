@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "PRAVAH"
+description = "PRAVAH is a field-ready national flash-flood risk overview with a live Mandakini River Valley command deck for disaster responders."
+version = "1.0.0"
+id = "artifacts/flashshield"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19941
+
+[services.development]
+run = "pnpm --filter @workspace/flashshield run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/flashshield", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/flashshield/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19941"
+BASE_PATH = "/"

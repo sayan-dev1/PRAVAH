@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+  --radius-sm: 0.18rem;
+  --radius-md: 0.28rem;
+  --radius-lg: 0.4rem;
+}
+
+:root {
+  --background: 215 28% 10%;
+  --foreground: 209 27% 88%;
+  --border: 211 20% 23%;
+  --input: 211 20% 23%;
+  --ring: 30 85% 62%;
+  --card: 215 26% 13%;
+  --card-foreground: 209 27% 88%;
+  --card-border: 211 20% 24%;
+  --popover: 215 25% 14%;
+  --popover-foreground: 209 27% 88%;
+  --popover-border: 211 20% 27%;
+  --primary: 30 85% 62%;
+  --primary-foreground: 215 28% 10%;
+  --secondary: 211 20% 20%;
+  --secondary-foreground: 209 27% 88%;
+  --muted: 211 20% 18%;
+  --muted-foreground: 211 13% 62%;
+  --accent: 174 39% 50%;
+  --accent-foreground: 215 28% 10%;
+  --destructive: 358 75% 59%;
+  --destructive-foreground: 0 0% 98%;
+  --sidebar: 215 30% 8%;
+  --sidebar-foreground: 209 27% 88%;
+  --sidebar-border: 211 20% 20%;
+  --sidebar-primary: 30 85% 62%;
+  --sidebar-primary-foreground: 215 28% 10%;
+  --sidebar-accent: 211 20% 17%;
+  --sidebar-accent-foreground: 209 27% 88%;
+  --sidebar-ring: 30 85% 62%;
+  --chart-1: 30 85% 62%;
+  --chart-2: 174 39% 50%;
+  --chart-3: 358 75% 59%;
+  --chart-4: 196 48% 57%;
+  --chart-5: 39 79% 69%;
+  --app-font-sans: 'IBM Plex Sans', sans-serif;
+  --app-font-mono: 'IBM Plex Mono', monospace;
+  --radius: 0.28rem;
+  --elevate-1: rgba(255,255,255,.035);
+  --elevate-2: rgba(255,255,255,.07);
+}
+
+* { box-sizing: border-box; }
+html { background: #0f1720; }
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background: #0f1720;
+  color: #d7e0e8;
+  font-family: var(--app-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid #f2994a;
+  outline-offset: 2px;
+}
+
+.mono { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums; }
+.hairline { border: 1px solid rgba(155, 177, 195, .17); }
+.contour-bg {
+  background-color: #131e29;
+  background-image:
+    radial-gradient(ellipse at 20% 20%, transparent 0 35px, rgba(108,145,162,.08) 36px, transparent 37px 60px, rgba(108,145,162,.05) 61px, transparent 62px 96px),
+    linear-gradient(rgba(152, 177, 190, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(152, 177, 190, .035) 1px, transparent 1px);
+  background-size: 220px 170px, 24px 24px, 24px 24px;
+}
+.screen-noise::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .035;
+  z-index: 50;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E");
+}
+.pulse-soft { animation: pulse-soft 2.4s ease-in-out infinite; }
+.leaflet-container {
+  background: #101b25;
+  font-family: var(--app-font-sans);
+}
+.leaflet-control-attribution {
+  background: rgba(17, 28, 38, .82) !important;
+  color: #6e828e !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a { color: #8ca6af !important; }
+.leaflet-tooltip {
+  border: 1px solid rgba(155, 177, 195, .35);
+  border-radius: 0;
+  background: #111c26;
+  color: #d7e0e8;
+  box-shadow: none;
+  font-family: var(--app-font-sans);
+  font-size: 11px;
+}
+.leaflet-tooltip-top::before { border-top-color: #111c26; }
+.flashshield-marker {
+  background: transparent;
+  border: 0;
+}
+.flashshield-marker-dot {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--marker-color);
+  border-radius: 50%;
+  background: rgba(15, 23, 32, .88);
+  color: var(--marker-color);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--marker-color) 14%, transparent);
+  font-family: var(--app-font-mono);
+  font-size: 13px;
+}
+.flashshield-marker-dot b { font-weight: 600; }
+@keyframes pulse-soft { 0%,100% { opacity: .7; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}

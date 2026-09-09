@@ -24,7 +24,7 @@ async def trigger_cloudburst(request: SimulationRequest | None = None) -> Simula
 
 @router.post("/reset")
 def reset_simulation() -> dict[str, str]:
-	state_engine.set_surge(False)
+	state_engine.reset()
 	return {"status": "reset"}
 
 

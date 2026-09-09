@@ -31,6 +31,12 @@ class StateEngine:
 		with self._lock:
 			self._surge_active = active
 
+	def reset(self) -> None:
+		with self._lock:
+			self._surge_active = False
+			self._latest = None
+			self._readings.clear()
+
 	def surge_active(self) -> bool:
 		with self._lock:
 			return self._surge_active

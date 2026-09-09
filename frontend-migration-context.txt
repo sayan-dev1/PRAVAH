@@ -1,0 +1,181 @@
+PRAVAH Frontend Migration Context
+=================================
+
+Task
+----
+Replace the existing frontend_old application with frontend_new while updating the frontend to work with the target backend. Treat frontend_old as the current frontend source and frontend_new as the destination or replacement frontend. Do not delete or overwrite unrelated backend code.
+
+Repository context
+------------------
+This workspace contains a React frontend built with Vite, TypeScript, Tailwind CSS, React Query, Wouter, Leaflet, and Radix UI components.
+
+Current frontend location:
+- frontend/
+
+Important frontend files:
+- frontend/package.json: scripts and dependencies
+- frontend/vite.config.ts: Vite configuration; requires PORT and BASE_PATH
+- frontend/index.html: HTML entry point and metadata
+- frontend/src/main.tsx: React entry point
+- frontend/src/App.tsx: main application and dashboard views
+- frontend/src/index.css: global styles
+- frontend/src/lib/flashshield-api.ts: frontend data/API boundary
+- frontend/src/components/tactical-leaflet-map.tsx: tactical map
+- frontend/src/components/ui/: reusable UI components
+- frontend/src/pages/not-found.tsx: fallback page
+- frontend/public/: static assets
+
+Do not migrate generated/local directories:
+- node_modules/
+- dist/
+- .replit-artifact/
+- tsconfig.tsbuildinfo
+
+Additional files being brought into the migration
+--------------------------------------------------
+The migration may include more than the frontend directory. Inspect and account for every file brought from the source repository before editing. In particular, check for:
+
+- backend/ or server/ application code
+- API route, controller, service, middleware, and validation files
+- shared/ types, API schemas, generated clients, and OpenAPI files
+- database schema, migrations, seed data, and database configuration
+- authentication, authorization, session, and CORS configuration
+- root package.json, lockfiles, workspace files, and TypeScript configuration
+- Vite, Tailwind, ESLint, Prettier, and test configuration
+- public assets, images, icons, fonts, and static data files
+- Dockerfiles, compose files, deployment manifests, CI workflows, and startup scripts
+- README files and environment-variable examples
+
+For each additional file, determine whether it is:
+
+1. Required at runtime by the frontend or backend.
+2. Required only for development, testing, generation, or deployment.
+3. A duplicate of an existing file that must be merged rather than copied.
+4. Generated output that should be regenerated instead of migrated.
+5. A local secret, cache, dependency, log, or machine-specific file that must not be migrated.
+
+Do not assume that a file belongs in frontend_new only because it was located near the old frontend. Preserve backend ownership boundaries and merge configuration carefully. When two files have the same purpose, compare their scripts, aliases, environment variables, package versions, routes, and build output before choosing the destination version.
+
+Additional migration inventory
+------------------------------
+Before making changes, produce an inventory with:
+
+- source path
+- destination path
+- file type and purpose
+- whether it is copied, merged, regenerated, or excluded
+- dependencies on other files
+- environment variables or secrets involved
+- validation needed after migration
+
+The inventory must include newly supplied files, even when they are outside frontend_old and frontend_new. Do not silently omit backend or shared files.
+
+Shared packages
+---------------
+The repository also contains shared packages that may be needed by the frontend:
+- shared/api-client-react/
+- shared/api-zod/
+- shared/api-spec/
+
+Inspect these packages before creating duplicate API types or clients. Prefer the existing generated client and shared schemas when they match the target backend contract.
+
+Current data behavior
+---------------------
+The current dashboard data is mostly mock/in-memory data in:
+- frontend/src/lib/flashshield-api.ts
+
+The following functions currently use hardcoded data and should be connected to the target backend where suitable:
+- getTelemetry()
+- getVillages()
+- getVillageDetail()
+- getEvacuation()
+- postSimulateCloudburst()
+- postReset()
+
+The frontend types that must be mapped to backend responses are:
+- RiskStatus: NORMAL | WATCH | CRITICAL
+- Telemetry: rainfall, riverLevel, rateOfRise, status, observedAt, station
+- Village: id, name, population, status, distance, eta, rainfall, recommendation
+- Factor: label, value, detail
+- EvacuationPlan: shelter, route, leadTime, capacity, actions
+
+The WebSocket URL is currently read from:
+- VITE_FLASHSHIELD_WS_URL
+
+Add a REST API base URL if needed, for example:
+- VITE_API_BASE_URL=http://localhost:5000
+
+Migration instructions
+----------------------
+1. Inspect both frontend_old and frontend_new before editing.
+2. Inspect all additional files brought from either repository and create the migration inventory above.
+3. Identify which application is the source of truth for layout, routes, styling, and user interactions.
+4. Preserve useful frontend_new UI and behavior unless it conflicts with the target backend contract.
+5. Move or adapt required components, hooks, styles, assets, and configuration from frontend_old into frontend_new.
+6. Merge backend routes, services, schemas, and configuration only where they belong in the target backend.
+7. Replace mock data calls with backend API calls using the target backend URL.
+8. Match request and response names, status codes, authentication, error handling, and WebSocket messages to the target backend.
+9. Keep API calls in a dedicated module such as src/lib/flashshield-api.ts or the equivalent API service module. Do not scatter raw fetch calls throughout UI components.
+10. Use environment variables for backend URLs. Do not hardcode production URLs, tokens, passwords, or secrets.
+11. Configure CORS in the backend or configure a Vite development proxy for local development.
+12. Preserve responsive behavior, map interactions, loading states, error states, and the NORMAL/WATCH/CRITICAL status semantics.
+13. Update package.json, tsconfig, Vite config, workspace paths, shared package references, scripts, and deployment configuration to match the destination repository layout.
+14. Do not copy node_modules, dist, caches, logs, generated output, or environment files containing secrets.
+15. Update README or setup documentation with install, development, build, deployment, and environment-variable instructions.
+
+Expected destination layout
+---------------------------
+The merged repository should normally look similar to:
+
+repo/
+- backend/
+- frontend_new/
+  - src/
+  - public/
+  - index.html
+  - package.json
+  - tsconfig.json
+  - vite.config.ts
+- shared/ (only if used by the merged application)
+- database/ or db/ (only if required by the target backend)
+- scripts/ (only if required for development, generation, testing, or deployment)
+- package.json
+- pnpm-workspace.yaml
+
+Validation checklist
+--------------------
+Run these checks from the final repository root:
+
+- Install dependencies with pnpm.
+- Confirm all newly brought packages are included in the correct workspace and lockfile.
+- Confirm no duplicate package manager lockfiles or conflicting workspace roots remain.
+- Confirm backend, shared, database, and deployment files are in their intended ownership directories.
+- Run the frontend TypeScript check.
+- Run backend and shared-package typechecks when those files were migrated.
+- Run the frontend production build with PORT and BASE_PATH set when required.
+- Run backend build and startup checks when backend files were migrated.
+- Start the frontend development server.
+- Confirm the main page loads without console errors.
+- Confirm navigation and primary dashboard interactions work.
+- Confirm frontend requests reach the target backend.
+- Confirm loading, empty, error, and backend-unavailable states.
+- Confirm WebSocket fallback or live mode behaves correctly.
+- Test desktop and mobile layouts.
+
+Known commands for the current frontend
+----------------------------------------
+PowerShell:
+
+$env:PORT='4173'; $env:BASE_PATH='/'; corepack pnpm --dir frontend typecheck
+$env:PORT='4173'; $env:BASE_PATH='/'; corepack pnpm --dir frontend build
+cmd.exe /d /c "set PORT=4173&&set BASE_PATH=/&&corepack pnpm --dir frontend dev"
+
+Before finishing
+----------------
+Report:
+- files moved or updated
+- API endpoints connected
+- environment variables required
+- any assumptions about the target backend
+- validation commands and results
+- remaining migration risks
