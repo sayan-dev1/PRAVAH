@@ -3,3 +3,4 @@ uvicorn[standard]
 pydantic
 websockets
 networkx
+python-dotenv

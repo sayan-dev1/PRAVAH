@@ -1,0 +1,32 @@
+{
+  "region_id": "beas_kullu",
+  "name": "Upper Beas River Basin",
+  "state": "Himachal Pradesh",
+  "district": "Kullu",
+  "utm_crs": "EPSG:32643",
+  "bbox": {
+    "south": 31.85,
+    "west": 77.05,
+    "north": 32.10,
+    "east": 77.25
+  },
+  "river_query": "Beas|ब्यास",
+  "target_settlements": [
+    "Kullu",
+    "Bhuntar",
+    "Manali"
+  ],
+  "weather": {
+    "latitude": 31.975,
+    "longitude": 77.15,
+    "provider": "open_meteo"
+  },
+  "shelter_query": "school|college|community_centre|stadium",
+  "hydro_calibration": {
+    "status": "UNSET_CALIBRATION_REQUIRED",
+    "watch_dh_dt_cm_min": null,
+    "critical_dh_dt_cm_min": null,
+    "wave_velocity_kmh": null,
+    "upstream_gauge_distance_km": null
+  }
+}

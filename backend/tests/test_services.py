@@ -114,7 +114,8 @@ def test_ml_inference():
     assert risk_crit.village_id == "VIL_TILWARA"
     assert risk_crit.predicted_tier == "CRITICAL"
     assert risk_crit.probabilities["CRITICAL"] == 0.80
-    assert len(risk_crit.factors) > 0
+    assert risk_crit.ml_status == "UNAVAILABLE"
+    assert risk_crit.factors == []
 
     # High risk scenario
     risk_high = detailed_risk("VIL_TILWARA", rainfall_mm_hr=40.0, soil_moisture_pct=60.0)

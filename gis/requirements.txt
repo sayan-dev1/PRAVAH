@@ -1,5 +1,10 @@
 rasterio
 geopandas
 shapely
+numpy
+pyproj
+requests
 osmnx
-richdem
+networkx
+python-dotenv
+pytest

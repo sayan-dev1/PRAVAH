@@ -35,7 +35,7 @@ minimumReleaseAgeExclude:
   - stripe-replit-sync
 
 packages:
-  - frontend_new
+  - frontend
   - backend
   - shared/*
   - artifacts/*
@@ -70,12 +70,6 @@ catalog:
   zod: ^3.25.76
 
 autoInstallPeers: false
-
-onlyBuiltDependencies:
-  - '@swc/core'
-  - esbuild
-  - msw
-  - unrs-resolver
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
@@ -158,5 +152,6 @@ overrides:
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.27.3"
 
+
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true

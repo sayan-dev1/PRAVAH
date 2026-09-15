@@ -16,8 +16,6 @@ from app.core.state import state_engine
 def client():
     """FastAPI TestClient fixture."""
     # Reset state engine before each test for test isolation
-    state_engine.set_surge(False)
-    state_engine._latest = None
-    state_engine._readings.clear()
+    state_engine.reset()
     with TestClient(app) as test_client:
         yield test_client

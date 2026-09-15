@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.routes import evacuation, simulation, telemetry, villages
+from app.api.routes import evacuation, health, regions, simulation, telemetry, villages
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(telemetry.router)
@@ -10,5 +10,7 @@ api_router.include_router(villages.router)
 api_router.include_router(simulation.router)
 api_router.include_router(evacuation.router)
 api_router.include_router(villages.risk_router)
+api_router.include_router(regions.router)
+api_router.include_router(health.router)
 ws_router = telemetry.ws_router
 

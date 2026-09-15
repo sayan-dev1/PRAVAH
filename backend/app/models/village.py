@@ -11,6 +11,8 @@ class VillageStatus(BaseModel):
 	lead_time_minutes: int
 	population_at_risk: int
 	primary_driver: str
+	regional_hazard_status: str = "NORMAL"
+	settlement_risk_status: str = "DATA_UNAVAILABLE"
 
 
 class RiskFactor(BaseModel):
@@ -24,4 +26,5 @@ class DetailedRisk(BaseModel):
 	probabilities: dict[str, float]
 	primary_driver: str
 	factors: list[RiskFactor]
+	ml_status: str = "UNAVAILABLE"
 

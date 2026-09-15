@@ -1,0 +1,40 @@
+{
+  "region_id": "beas_kullu",
+  "name": "Upper Beas River Basin",
+  "state": "Himachal Pradesh",
+  "district": "Kullu",
+  "bbox": {
+    "south": 31.85,
+    "west": 77.05,
+    "north": 32.1,
+    "east": 77.25
+  },
+  "map_center": [
+    31.975,
+    77.15
+  ],
+  "weather": {
+    "latitude": 31.975,
+    "longitude": 77.15,
+    "provider": "open_meteo"
+  },
+  "hydro_calibration": {
+    "status": "UNSET_CALIBRATION_REQUIRED",
+    "watch_dh_dt_cm_min": null,
+    "critical_dh_dt_cm_min": null,
+    "wave_velocity_kmh": null,
+    "upstream_gauge_distance_km": null
+  },
+  "assets": {
+    "manifest": "manifest.json",
+    "rivers": "rivers.geojson",
+    "settlements": "settlements.geojson",
+    "shelters": "shelters.geojson",
+    "roads": "roads.graphml",
+    "dem": "dem.tif",
+    "slope": "slope.tif",
+    "flow_accumulation": "flow_accumulation.tif",
+    "twi": "twi.tif",
+    "terrain_features": "terrain_features.csv"
+  }
+}

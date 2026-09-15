@@ -7,6 +7,8 @@ def test_get_telemetry(client):
     assert "rate_of_rise_cm_min" in data
     assert "soil_moisture_pct" in data
     assert "status" in data
+    assert data["region_id"] == "mandakini"
+    assert data["data_status"] == "SIMULATED_HYDROLOGY"
 
 
 def test_post_valid_telemetry(client):
@@ -23,6 +25,8 @@ def test_post_valid_telemetry(client):
     data = response.json()
     assert data["accepted"] is True
     assert data["telemetry"]["water_level_cm"] == 110.0
+    assert data["telemetry"]["region_id"] == "mandakini"
+    assert data["telemetry"]["data_status"] == "SENSOR_TELEMETRY"
 
     # Verify latest telemetry updated
     get_resp = client.get("/api/telemetry")

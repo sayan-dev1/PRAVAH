@@ -3,10 +3,11 @@
 from app.services.hydro_rules import lead_time_minutes
 
 
-def tactical_message(rate_of_rise_cm_min: float, village: str = "Tilwara") -> str:
+def tactical_message(rate_of_rise_cm_min: float, village: str = "regional settlements",
+					 calibration: dict | None = None, region_name: str = "PRAVAH basin") -> str:
 	message = (
-		f"[NDRF ALERT] MANDAKINI BASIN: Flash surge detected (+{rate_of_rise_cm_min:.1f}cm/m). "
-		f"{village} sector at risk in {lead_time_minutes()}m. Evacuate via High Road."
+		f"[NDRF ALERT] {region_name}: Flash surge detected (+{rate_of_rise_cm_min:.1f}cm/m). "
+		f"{village} sector at risk in {lead_time_minutes(calibration)}m. Evacuate via regional route."
 	)
 	return message[:140]
 

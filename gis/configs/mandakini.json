@@ -1,0 +1,32 @@
+{
+  "region_id": "mandakini",
+  "name": "Mandakini River Valley",
+  "state": "Uttarakhand",
+  "district": "Rudraprayag",
+  "utm_crs": "EPSG:32644",
+  "bbox": {
+    "south": 30.25,
+    "west": 78.92,
+    "north": 30.42,
+    "east": 79.05
+  },
+  "river_query": "Mandakini|मन्दाकिनी",
+  "target_settlements": [
+    "Tilwara",
+    "Sumerpur",
+    "Rudraprayag"
+  ],
+  "weather": {
+    "latitude": 30.335,
+    "longitude": 78.985,
+    "provider": "open_meteo"
+  },
+  "shelter_query": "school|college|community_centre",
+  "hydro_calibration": {
+    "status": "PILOT_PROTOTYPE",
+    "watch_dh_dt_cm_min": 1.0,
+    "critical_dh_dt_cm_min": 2.0,
+    "wave_velocity_kmh": 4.0,
+    "upstream_gauge_distance_km": 8.4
+  }
+}

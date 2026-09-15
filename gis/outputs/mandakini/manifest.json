@@ -1,0 +1,40 @@
+{
+  "region_id": "mandakini",
+  "name": "Mandakini River Valley",
+  "state": "Uttarakhand",
+  "district": "Rudraprayag",
+  "bbox": {
+    "south": 30.25,
+    "west": 78.92,
+    "north": 30.42,
+    "east": 79.05
+  },
+  "map_center": [
+    30.335,
+    78.985
+  ],
+  "weather": {
+    "latitude": 30.335,
+    "longitude": 78.985,
+    "provider": "open_meteo"
+  },
+  "hydro_calibration": {
+    "status": "PILOT_PROTOTYPE",
+    "watch_dh_dt_cm_min": 1.0,
+    "critical_dh_dt_cm_min": 2.0,
+    "wave_velocity_kmh": 4.0,
+    "upstream_gauge_distance_km": 8.4
+  },
+  "assets": {
+    "manifest": "manifest.json",
+    "rivers": "rivers.geojson",
+    "settlements": "settlements.geojson",
+    "shelters": "shelters.geojson",
+    "roads": "roads.graphml",
+    "dem": "dem.tif",
+    "slope": "slope.tif",
+    "flow_accumulation": "flow_accumulation.tif",
+    "twi": "twi.tif",
+    "terrain_features": "terrain_features.csv"
+  }
+}

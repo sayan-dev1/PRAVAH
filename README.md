@@ -5,7 +5,6 @@ Real-time flash-flood monitoring, risk assessment, and evacuation coordination f
 ## Project layout
 
 - `backend/` FastAPI core engine
-- `frontend_new/` tactical command deck (replacement for `frontend_old/`)
 - `gis/` geospatial data pipeline
 - `ml/` vulnerability modeling work
 - `docs/` project contracts and task guides
@@ -17,7 +16,17 @@ See `docs/project-context.md`, `docs/FRONTEND_TASK.md`, and `frontend-migration-
 
 ## Local development
 
-Use two PowerShell terminals from the repository root.
+### Quick start (Windows)
+
+Double-click or run from command prompt / PowerShell:
+
+```cmd
+run.bat
+```
+
+This launches both the backend and frontend in dedicated windows and opens `http://localhost:4173/` in your browser. (Pass `--no-browser` if you do not want the browser to open automatically).
+
+### Manual development (two terminals)
 
 ### Install dependencies
 
@@ -44,7 +53,7 @@ Invoke-RestMethod http://localhost:8000/health
 In terminal 2:
 
 ```powershell
-& .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload --port 8000
+$env:PORT='4173'; $env:BASE_PATH='/'; $env:VITE_API_BASE_URL='http://localhost:8000'; corepack pnpm --dir frontend dev
 ```
 
 Open `http://localhost:4173/` in a browser. The frontend connects to the
@@ -57,6 +66,6 @@ only when the websocket is hosted elsewhere.
 ```powershell
 $env:PORT='4173'
 $env:BASE_PATH='/'
-corepack pnpm --dir frontend_new typecheck
-corepack pnpm --dir frontend_new build
+corepack pnpm --dir frontend typecheck
+corepack pnpm --dir frontend build
 ```
