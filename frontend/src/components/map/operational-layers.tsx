@@ -185,7 +185,7 @@ export function GaugeLayer({
   const meta = statusMeta[currentStatus] ?? statusMeta.UNKNOWN;
   const provenance = telemetry.isSynthetic
     ? 'SIMULATION'
-    : telemetry.waterLevelSource === 'live' || telemetry.waterLevelSource === 'iot'
+    : telemetry.waterLevelSource === 'live' || telemetry.waterLevelSource === 'sensor' || telemetry.waterLevelSource === 'iot'
     ? 'LIVE_OBSERVED'
     : telemetry.waterLevelSource
     ? 'DERIVED'

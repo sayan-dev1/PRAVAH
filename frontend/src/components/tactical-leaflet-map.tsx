@@ -100,8 +100,8 @@ export function TacticalLeafletMap({
   // Provenance determination
   const activeProvenance: DataProvenance = useMemo(() => {
     if (telemetry?.isSynthetic) return 'SIMULATION';
-    if (telemetry?.waterLevelSource === 'live' || telemetry?.waterLevelSource === 'iot') return 'LIVE_OBSERVED';
-    if (telemetry?.rainfallSource === 'open_meteo') return 'MODEL_WEATHER';
+    if (telemetry?.waterLevelSource === 'live' || telemetry?.waterLevelSource === 'sensor' || telemetry?.waterLevelSource === 'iot') return 'LIVE_OBSERVED';
+    if (telemetry?.rainfallSource === 'open_meteo' || telemetry?.rainfallSource === 'weather_api') return 'MODEL_WEATHER';
     if (telemetry?.rateOfRiseSource) return 'DERIVED';
     if (layers?.villages) return 'GIS';
     return 'UNAVAILABLE';

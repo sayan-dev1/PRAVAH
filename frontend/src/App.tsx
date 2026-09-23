@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -16,9 +16,11 @@ import {
   ChevronDown,
   CircleDot,
   Clock,
+  Cloud,
   CloudRain,
   Compass,
   Crosshair,
+  Droplets,
   Gauge,
   GitBranch,
   HelpCircle,
@@ -35,10 +37,12 @@ import {
   ShieldCheck,
   Siren,
   Sparkles,
+  Thermometer,
   TriangleAlert,
   Users,
   Volume2,
   VolumeX,
+  Wind,
   X,
   Zap,
 } from 'lucide-react';
@@ -50,8 +54,16 @@ import {
   type RiskStatus,
   type TelemetryViewModel,
   type VillageViewModel,
+  type WeatherData,
 } from '@/lib/flashshield-api';
 import { TacticalLeafletMap } from '@/components/tactical-leaflet-map';
+import { RainfallRiverPlot } from '@/components/rainfall-river-plot';
+import {
+  NationalOverviewMap,
+  MonitoredRegionsList,
+  INITIAL_REGIONS,
+  type NationalRegion,
+} from '@/components/national-overview-map';
 import NotFound from '@/pages/not-found';
 import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
 
@@ -311,575 +323,561 @@ function TopBar({
   );
 }
 
-function NationalMap({ onEnterPilot, region }: { onEnterPilot: () => void; region?: Region }) {
-  const regionName = region?.name ?? 'Selected Region';
-  const regionDistrict = region?.district ?? 'Monitored District';
+function Overview({
+  onSelectRegion,
+  regions,
+  selectedRegionId,
+}: {
+  onSelectRegion: (regionId: string) => void;
+  regions: Region[];
+  selectedRegionId: string;
+}) {
+  const nationalRegions: NationalRegion[] = useMemo(() => {
+    return INITIAL_REGIONS.map((initReg) => {
+      const backendMatch = regions.find((r) => r.region_id === initReg.region_id);
+      if (backendMatch && backendMatch.center && backendMatch.center.length >= 2) {
+        return {
+          region_id: backendMatch.region_id,
+          name: backendMatch.name || initReg.name,
+          state: backendMatch.state || initReg.state,
+          latitude: backendMatch.center[0],
+          longitude: backendMatch.center[1],
+          enabled: true,
+        };
+      }
+      return initReg;
+    });
+  }, [regions]);
 
   return (
-    <div className="relative min-h-[500px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#090e16] shadow-2xl contour-bg md:min-h-[620px]">
-      {/* Top Left Watermark */}
-      <div className="absolute left-6 top-6 z-10 space-y-1 rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3 backdrop-blur-md shadow-xl">
-        <div className="flex items-center gap-2.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400 pulse-soft" />
-          <div className="mono text-xs font-bold tracking-wider text-slate-100">
-            INDIA / WATERSHED RISK OBSERVATORY
-          </div>
-        </div>
-        <div className="text-xs text-slate-400 font-normal">
-          Multi-Basin Runtime Early-Warning Overview
-        </div>
-      </div>
-
-      {/* Bottom Left Context Warning */}
-      <div className="absolute bottom-6 left-6 z-10 rounded-xl border border-amber-500/30 bg-slate-950/85 px-4 py-3 backdrop-blur-md shadow-xl">
-        <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-400">
-          <Zap size={14} />
-          <span>OPERATIONAL DEPLOYMENTS</span>
-        </div>
-        <div className="mt-0.5 text-xs text-slate-300 font-medium">
-          Configuration-Driven GIS Bundles loaded dynamically from backend registry.
-        </div>
-      </div>
-
-      {/* SVG Map of India with Tactical Markers */}
-      <svg
-        viewBox="0 0 720 620"
-        className="absolute inset-0 h-full w-full"
-        role="img"
-        aria-label="India regional risk context map"
-      >
-        <defs>
-          <filter id="soft">
-            <feGaussianBlur stdDeviation="16" />
-          </filter>
-          <filter id="glowRadar">
-            <feGaussianBlur stdDeviation="5" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <linearGradient id="indiaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#131e2e" />
-            <stop offset="100%" stopColor="#0a101a" />
-          </linearGradient>
-        </defs>
-
-        {/* Outline boundary of India subcontinent */}
-        <path
-          d="M353 47 405 71 428 111 464 133 451 167 488 197 503 241 477 264 501 305 477 339 450 353 436 401 405 432 383 494 352 545 323 519 306 470 286 425 269 381 247 355 229 321 207 297 220 263 207 230 237 212 243 180 276 166 292 126 317 111 326 74Z"
-          fill="url(#indiaGrad)"
-          stroke="#475569"
-          strokeOpacity=".6"
-          strokeWidth="1.5"
-        />
-
-        {/* Major Watershed Risk Heat Halos */}
-        <path
-          d="M240 155 C302 132 370 127 457 183"
-          fill="none"
-          stroke="#f97316"
-          strokeOpacity=".3"
-          strokeWidth="48"
-          filter="url(#soft)"
-        />
-        <path
-          d="M260 327 C301 304 369 311 442 348"
-          fill="none"
-          stroke="#10b981"
-          strokeOpacity=".25"
-          strokeWidth="48"
-          filter="url(#soft)"
-        />
-
-        {/* Watershed flow vectors */}
-        <path
-          d="M304 105 C362 116 422 131 464 172"
-          fill="none"
-          stroke="#f97316"
-          strokeOpacity=".7"
-          strokeDasharray="4 6"
-        />
-        <path
-          d="M262 329 C324 300 397 314 454 345"
-          fill="none"
-          stroke="#10b981"
-          strokeOpacity=".6"
-          strokeDasharray="4 6"
-        />
-
-        {/* Western Ghats Points */}
-        <g fill="#10b981" fillOpacity=".9">
-          <circle cx="303" cy="323" r="4.5" />
-          <circle cx="333" cy="315" r="4.5" />
-          <circle cx="370" cy="326" r="4.5" />
-        </g>
-
-        {/* Brahmaputra Points */}
-        <g fill="#f59e0b" fillOpacity=".9">
-          <circle cx="488" cy="197" r="4.5" />
-          <circle cx="464" cy="180" r="4.5" />
-        </g>
-
-        {/* Active deployment focus reticle & pulse rings */}
-        <g transform="translate(346 142)">
-          <circle r="36" fill="none" stroke="#f97316" strokeOpacity=".3" strokeWidth="1.5" strokeDasharray="4 4" className="radar-spin" />
-          <circle r="22" fill="#f97316" fillOpacity=".2" stroke="#f97316" strokeWidth="2" className="pulse-soft" />
-          <circle r="7" fill="#f97316" filter="url(#glowRadar)" />
-          <path d="M0-34v16M-34 0h16M34 0H18M0 18v16" stroke="#f97316" strokeWidth="2" />
-        </g>
-
-        {/* Callout Card for active deployment */}
-        <g transform="translate(362 108)" className="cursor-pointer group" onClick={onEnterPilot}>
-          <rect
-            x="12"
-            y="-26"
-            width="210"
-            height="48"
-            fill="#090e17"
-            stroke="#f97316"
-            strokeWidth="1.5"
-            rx="8"
-          />
-          <text x="24" y="-8" fill="#fbbf24" fontSize="12" fontFamily="JetBrains Mono" fontWeight="bold">
-            {regionName.toUpperCase()}
-          </text>
-          <text x="24" y="10" fill="#94a3b8" fontSize="11" fontFamily="Plus Jakarta Sans" fontWeight="500">
-            {regionDistrict} · Open Deck →
-          </text>
-        </g>
-
-        {/* Geographical Labels */}
-        <g fill="#64748b" fontSize="11" fontFamily="Plus Jakarta Sans" fontWeight="700" letterSpacing="0.08em">
-          <text x="220" y="145">HIMALAYAN WATERSHED</text>
-          <text x="240" y="375">WESTERN GHATS</text>
-          <text x="440" y="210">BRAHMAPUTRA BASIN</text>
-        </g>
-      </svg>
-
-      {/* Floating Modern Key */}
-      <div className="absolute right-6 top-6 hidden rounded-xl border border-white/10 bg-slate-950/85 p-4 text-xs text-slate-300 shadow-2xl backdrop-blur-md md:block">
-        <div className="mb-3 font-bold tracking-wider text-white">OPERATIONAL KEY</div>
-        <div className="mb-2 flex items-center gap-2.5 font-medium">
-          <span className="h-2.5 w-6 rounded-full bg-amber-500/90 shadow-[0_0_8px_rgba(245,158,11,0.5)]" /> Cloudburst recurrence
-        </div>
-        <div className="mb-2 flex items-center gap-2.5 font-medium">
-          <span className="h-2.5 w-6 rounded-full bg-emerald-500/90 shadow-[0_0_8px_rgba(16,185,129,0.5)]" /> Monsoon watch
-        </div>
-        <div className="flex items-center gap-2.5 font-medium">
-          <span className="h-3 w-6 rounded-full border border-orange-500 bg-orange-500/30" /> Active pilot
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Overview({ onEnter, region }: { onEnter: () => void; region?: Region }) {
-  const currentRegion = region ?? {
-    region_id: 'loading',
-    name: 'Loading Region…',
-    state: 'National Observatory',
-    district: 'Multi-Basin',
-  };
-
-  return (
-    <main className="mx-auto max-w-[1560px] px-4 pb-16 pt-8 md:px-8 md:pt-12">
-      {/* Hero Section */}
-      <section className="mb-10 grid gap-8 md:grid-cols-[1.15fr_.85fr] md:items-end">
-        <div>
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs font-bold tracking-wider text-amber-300">
-            <Sparkles size={14} className="text-amber-400" />
-            <span>RAPID-ONSET FLOOD EARLY WARNING</span>
-          </div>
-          <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight text-white md:text-5xl lg:text-6xl">
-            Predictive intelligence.<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400">
-              Before the surge crests.
+    <main className="mx-auto max-w-[1640px] px-4 pb-12 pt-4 md:px-8 md:pt-5">
+      {/* Level 1 & 2 & 3: PRAVAH Identity & Purpose Section */}
+      <section className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-3xl">
+          {/* 1. Large, Prominent Product Name */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-none">
+              PRA<span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">VAH</span>
+            </h1>
+            <span className="mono rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-300 border border-amber-500/30">
+              v2.5
             </span>
-          </h1>
-          <p className="mt-5 max-w-[660px] text-base leading-relaxed text-slate-300 font-normal">
-            PRAVAH equips NDRF commanders, district magistrates, and ward officers with a unified
-            operational picture for flash-flood and cloudburst hazard management — translating raw
-            upstream rainfall and water-level telemetry into actionable village evacuation corridors.
+          </div>
+
+          {/* 2. Formal System Name / Tagline */}
+          <h2 className="mt-2 mono text-xs md:text-sm font-bold tracking-wider text-amber-400 uppercase leading-snug">
+            Predictive River & Valley Hazard Alert System
+          </h2>
+
+          {/* 3. Product Description */}
+          <p className="mt-2 text-xs md:text-sm text-slate-300 font-normal leading-relaxed">
+            A multi-basin early-warning and operational intelligence platform for flash floods,
+            extreme rainfall, landslides, and rapid-onset hazards across India's vulnerable hilly regions.
           </p>
+        </div>
 
-          {/* Operational Metrics Row */}
-          <div className="mt-8 grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-            {[
-              { label: 'ACTIVE DEPLOYMENT', value: currentRegion.name, sub: currentRegion.state },
-              { label: 'MONITORED REGION', value: currentRegion.district, sub: `${currentRegion.state}` },
-              { label: 'REGIONAL RISK', value: 'RUNTIME', sub: 'Backend-computed' },
-              { label: 'DECISION ENGINE', value: 'ACTIVE', sub: 'Hydro rules / ML' },
-            ].map((stat) => (
-              <div key={stat.label} className="glass-card rounded-2xl p-4 shadow-xl glass-card-hover">
-                <div className="mono text-[11px] font-bold tracking-wider text-slate-400">{stat.label}</div>
-                <div className="mono mt-2 text-lg font-extrabold text-white truncate">{stat.value}</div>
-                <div className="text-xs text-slate-400 font-medium truncate mt-0.5">{stat.sub}</div>
-              </div>
-            ))}
+        {/* System & Status Badges */}
+        <div className="flex flex-wrap items-center gap-2.5 pt-1">
+          <div className="rounded-xl border border-white/10 bg-slate-900/80 px-3.5 py-2 backdrop-blur-md shadow-lg">
+            <div className="mono text-[10px] font-bold text-slate-400">MONITORED BASINS</div>
+            <div className="mono text-sm md:text-base font-extrabold text-white">
+              {nationalRegions.length} <span className="text-xs text-emerald-400 font-semibold">Active Nodes</span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-slate-900/80 px-3.5 py-2 backdrop-blur-md shadow-lg">
+            <div className="mono text-[10px] font-bold text-slate-400">GEOGRAPHIC SCOPE</div>
+            <div className="mono text-sm md:text-base font-extrabold text-white">
+              INDIAN SUBCONTINENT <span className="text-xs text-amber-400 font-semibold">Tactical</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Subtle Separation */}
+      <div className="border-t border-white/[0.08] my-3.5" />
+
+      {/* National Overview Operational Introduction */}
+      <section className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h3 className="text-base md:text-lg font-bold tracking-tight text-white uppercase">
+            NATIONAL OVERVIEW
+          </h3>
+          <p className="text-xs text-slate-400 font-medium">
+            Multi-basin operational surveillance across India's major hilly and riverine hazard regions.
+          </p>
+        </div>
+        <div className="mono text-[11px] text-slate-400 font-medium hidden sm:block">
+          Select a monitored region to enter its tactical Command Deck
+        </div>
+      </section>
+
+      {/* Main Map & Selector Section */}
+      <div className="grid gap-5 lg:grid-cols-[1.58fr_1fr] items-start">
+        {/* Dominant Tactical Leaflet Map */}
+        <div className="space-y-1.5">
+          <NationalOverviewMap
+            regions={nationalRegions}
+            selectedRegionId={selectedRegionId}
+            onSelectRegion={onSelectRegion}
+          />
+          <div className="flex flex-wrap items-center justify-between px-2 text-[11px] text-slate-400 font-medium">
+            <span>● Click any regional node marker above or list item to enter Command Deck</span>
+            <span className="mono text-slate-500">CartoDB Dark Matter · Subcontinent Extent</span>
           </div>
         </div>
 
-        {/* Active Deployment Card */}
-        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-amber-950/20 p-7 shadow-2xl backdrop-blur-xl md:mb-1">
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
-            <span className="mono text-xs font-bold tracking-widest text-amber-400">
-              ACTIVE DEPLOYMENT BUNDLE
-            </span>
-            <span className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 pulse-soft" /> BACKEND GIS
-            </span>
-          </div>
+        {/* Accessible Monitored Region Selector List */}
+        <div className="space-y-3.5">
+          <MonitoredRegionsList
+            regions={nationalRegions}
+            selectedRegionId={selectedRegionId}
+            onSelectRegion={onSelectRegion}
+          />
 
-          <div className="mt-5">
-            <h2 className="text-2xl font-extrabold text-white">{currentRegion.name}</h2>
-            <div className="mt-1 text-sm text-slate-300 font-semibold">
-              {currentRegion.district} District · {currentRegion.state}
+          {/* Tactical Context Information Card */}
+          <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-slate-900/60 to-slate-950 p-4 backdrop-blur-xl shadow-xl">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
+              <Zap size={14} />
+              <span>CONFIGURATION-DRIVEN MULTI-BASIN DEPLOYMENT</span>
             </div>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300 font-normal">
-              Region metadata, hydrology layers, telemetry, and evacuation assets are loaded dynamically
-              from the backend GIS bundle.
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-300 font-normal">
+              River geometries, telemetry feeds, IoT gauges, settlement graphs, and ML hazard classifiers
+              are loaded dynamically per basin on demand from the backend registry.
             </p>
           </div>
-
-          <div className="mt-7 flex flex-wrap items-center gap-4">
-            <button
-              onClick={onEnter}
-              data-testid="button-enter-command-deck"
-              className="inline-flex min-h-12 items-center gap-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 text-sm font-bold tracking-wider text-slate-950 shadow-lg shadow-orange-500/25 transition-all hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Crosshair size={18} />
-              <span>ENTER COMMAND DECK</span>
-              <ArrowUpRight size={17} />
-            </button>
-          </div>
         </div>
-      </section>
-
-      {/* Interactive Map Visual */}
-      <NationalMap onEnterPilot={onEnter} region={region} />
-
-      {/* Regional Context Grid */}
-      <section className="mt-8 grid gap-4 md:grid-cols-3">
-        {[
-          {
-            name: 'HIMALAYAN WATERSHEDS',
-            desc: 'Extreme slope gradients, glaciated moraines, and high cloudburst vulnerability across steep Himalayan valleys.',
-            label: 'CONFIGURED RUNTIME BASINS',
-            color: '#f97316',
-            active: true,
-          },
-          {
-            name: 'WESTERN GHATS',
-            desc: 'Orographic monsoonal deluge and rapid tributary swelling in Konkan and Malabar high-slope valleys.',
-            label: 'CALIBRATION ARCHIVE',
-            color: '#10b981',
-            active: false,
-          },
-          {
-            name: 'BRAHMAPUTRA BASIN',
-            desc: 'Massive channel braiding, high siltation, and extensive embankment breach risks during peak discharge.',
-            label: 'CALIBRATION ARCHIVE',
-            color: '#f59e0b',
-            active: false,
-          },
-        ].map((item) => (
-          <div
-            key={item.name}
-            className="group relative glass-card rounded-2xl p-6 transition-all glass-card-hover"
-            data-testid={`context-region-${item.name.toLowerCase().replaceAll(' ', '-')}`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-bold tracking-wider text-white">
-                {item.name}
-              </span>
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: item.color, boxShadow: `0 0 10px ${item.color}` }}
-              />
-            </div>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300 font-normal">{item.desc}</p>
-            <div className="mono mt-6 flex items-center justify-between text-xs font-bold tracking-wider">
-              <span style={{ color: item.color }}>{item.label}</span>
-              {item.active && (
-                <button
-                  onClick={onEnter}
-                  className="flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-bold"
-                >
-                  DECK <ArrowRight size={13} />
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </section>
+      </div>
     </main>
   );
 }
 
-function TelemetryStrip({
+function CurrentWeatherSection({ weatherData }: { weatherData?: WeatherData | null }) {
+  const current = weatherData?.current;
+  const isAvailable = Boolean(weatherData && weatherData.status !== 'UNAVAILABLE' && current);
+
+  const formatVal = (val: number | null | undefined, digits = 1) => {
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    return digits === 0 ? Math.round(val).toString() : val.toFixed(digits);
+  };
+
+  const updatedTime = useMemo(() => {
+    const raw = current?.timestamp ?? weatherData?.timestamp;
+    if (!raw) return 'Awaiting observation';
+    try {
+      const dt = new Date(raw);
+      if (isNaN(dt.getTime())) return raw;
+      return dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'Recent';
+    }
+  }, [current?.timestamp, weatherData?.timestamp]);
+
+  const precipVal = current?.precipitation ?? current?.rain ?? weatherData?.precipitation_rate_mm_hr;
+
+  const weatherMetrics = [
+    {
+      id: 'temp',
+      label: 'TEMPERATURE',
+      val: formatVal(current?.temperature_2m, 1),
+      unit: '°C',
+      desc: '2m Ambient Air',
+      icon: Thermometer,
+      accent: 'text-amber-400',
+      borderAccent: 'hover:border-amber-500/30',
+    },
+    {
+      id: 'precip',
+      label: 'PRECIPITATION',
+      val: formatVal(precipVal, 1),
+      unit: 'mm/hr',
+      desc: 'Current Rate',
+      icon: CloudRain,
+      accent: 'text-cyan-400',
+      borderAccent: 'hover:border-cyan-500/30',
+    },
+    {
+      id: 'wind_speed',
+      label: 'WIND SPEED',
+      val: formatVal(current?.wind_speed_10m, 1),
+      unit: 'km/h',
+      desc: '10m Surface Velocity',
+      icon: Wind,
+      accent: 'text-sky-400',
+      borderAccent: 'hover:border-sky-500/30',
+    },
+    {
+      id: 'cloud_cover',
+      label: 'CLOUD COVER',
+      val: formatVal(current?.cloud_cover, 0),
+      unit: '%',
+      desc: 'Sky Coverage',
+      icon: Cloud,
+      accent: 'text-indigo-300',
+      borderAccent: 'hover:border-indigo-500/30',
+    },
+    {
+      id: 'wind_gusts',
+      label: 'WIND GUST',
+      val: formatVal(current?.wind_gusts_10m, 1),
+      unit: 'km/h',
+      desc: 'Peak Surface Gusts',
+      icon: Compass,
+      accent: 'text-teal-400',
+      borderAccent: 'hover:border-teal-500/30',
+    },
+  ];
+
+  return (
+    <section
+      className="glass-panel rounded-2xl p-4.5 shadow-2xl space-y-3.5"
+      data-testid="current-weather-section"
+      aria-label="Current Atmospheric Conditions"
+    >
+      {/* Header bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] pb-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="grid h-7 w-7 place-items-center rounded-lg bg-sky-500/15 text-sky-400 border border-sky-500/30">
+            <Cloud size={15} aria-hidden="true" />
+          </div>
+          <div>
+            <h3 className="mono text-xs font-bold tracking-widest text-white">CURRENT WEATHER</h3>
+            <div className="text-[11px] text-slate-400">
+              Atmospheric conditions · Updated {updatedTime}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-white/10">
+            Source: weather_api · Open-Meteo
+          </span>
+          <span
+            className={`mono text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              isAvailable
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                : 'bg-slate-700 text-slate-400 border border-white/10'
+            }`}
+          >
+            {weatherData?.status ?? (isAvailable ? 'LIVE' : 'UNAVAILABLE')}
+          </span>
+        </div>
+      </div>
+
+      {/* 5 Operational Weather Metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        {weatherMetrics.map((m) => {
+          const Icon = m.icon;
+          return (
+            <div
+              key={m.id}
+              className={`glass-card rounded-xl p-3 border border-white/10 transition-all ${m.borderAccent}`}
+              data-testid={`weather-metric-${m.id}`}
+            >
+              <div className="flex items-center justify-between text-[11px] font-bold tracking-wider text-slate-300">
+                <span>{m.label}</span>
+                <Icon size={14} className={m.accent} aria-hidden="true" />
+              </div>
+              <div className="mono mt-1.5 flex items-baseline gap-1 text-xl sm:text-2xl font-extrabold text-white">
+                {m.val}
+                <span className="text-[11px] font-medium text-slate-400">{m.unit}</span>
+              </div>
+              <div className="mt-1.5 text-[10px] font-medium text-slate-400 truncate border-t border-white/5 pt-1">
+                {m.desc}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function HydrologicalStatusSection({
   telemetry,
+  weatherData,
+  regionName,
 }: {
   telemetry: TelemetryViewModel | null;
+  weatherData?: WeatherData | null;
+  regionName?: string;
 }) {
   if (!telemetry) {
     return (
-      <section className="grid gap-4 sm:grid-cols-3">
-        {[1, 2, 3].map((idx) => (
-          <div key={idx} className="glass-card rounded-2xl p-5 text-slate-400">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold tracking-wider">TELEMETRY</span>
-              <span className="mono rounded-full px-2.5 py-0.5 text-xs font-bold bg-slate-800 text-slate-400">
-                UNAVAILABLE
-              </span>
-            </div>
-            <div className="mono mt-3 text-3xl font-extrabold text-slate-500">—</div>
-            <div className="mt-3 text-xs text-slate-500 font-medium">Awaiting telemetry reading from backend…</div>
+      <section className="glass-panel rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-widest text-white">
+            <Activity size={16} className="text-teal-400" />
+            <span>HYDROLOGICAL STATUS</span>
           </div>
-        ))}
+          <span className="mono rounded-full px-2.5 py-0.5 text-xs font-bold bg-slate-800 text-slate-400">
+            AWAITING TELEMETRY
+          </span>
+        </div>
+        <div className="grid gap-3.5 grid-cols-2 sm:grid-cols-4">
+          {['Rainfall', 'Rain 24h', 'River', 'Rate of Rise'].map((label) => (
+            <div key={label} className="glass-card rounded-xl p-4 text-slate-400">
+              <div className="text-xs font-bold">{label}</div>
+              <div className="mono mt-2 text-2xl font-extrabold text-slate-500">—</div>
+              <div className="mono text-[10px] text-slate-500 mt-1">LOADING</div>
+            </div>
+          ))}
+        </div>
       </section>
     );
   }
 
-  const rainfallDanger = telemetry.rainfallMmHr !== null && telemetry.rainfallMmHr > 50;
-  const riverDanger = telemetry.waterLevelCm !== null && telemetry.waterLevelCm > 114;
-  const rateDanger = telemetry.rateOfRiseCmMin !== null && telemetry.rateOfRiseCmMin >= 2.0;
+  const isCritical = telemetry.status === 'CRITICAL';
+  const isWatch = telemetry.status === 'WATCH';
+  const rainfallDanger = isCritical || (telemetry.rainfallMmHr !== null && telemetry.rainfallMmHr >= 50);
+  const riverDanger = isCritical || isWatch;
+  const rateDanger = isCritical || (telemetry.rateOfRiseCmMin !== null && telemetry.rateOfRiseCmMin >= 2.0);
+
+  // 1. Top KPI Card Values
+  const rainfallNow = telemetry.rainfallMmHr !== null ? Math.round(telemetry.rainfallMmHr) : null;
+  const rain24h = weatherData?.rain_24h_mm ?? weatherData?.forecast_precipitation_24h_mm ?? telemetry.rainfall24hMm;
+  const riverLevelM = telemetry.waterLevelM !== null
+    ? telemetry.waterLevelM
+    : (telemetry.waterLevelCm !== null ? Number((telemetry.waterLevelCm / 100).toFixed(2)) : 1.10);
+  const rateOfRise = telemetry.rateOfRiseCmMin !== null ? telemetry.rateOfRiseCmMin : 0.0;
+  const rateOfRiseStr = `${rateOfRise >= 0 ? '+' : ''}${rateOfRise.toFixed(1)} cm/min`;
+  const rateLabel = rateDanger ? '↑ RAPID' : (rateOfRise > 1.0 ? '↑ ELEVATED' : '→ STABLE');
+
+  // 2. 5 Soil Moisture Depths (m³/m³)
+  const smDepths = weatherData?.soil_moisture ?? telemetry.soilMoistureDepths ?? {};
+  const baseVdr = telemetry.soilMoistureVdr;
+  const readDepth = (raw: number | { value: number | null } | null | undefined) =>
+    typeof raw === 'number' ? raw : raw?.value ?? null;
+  const depth0_1 = readDepth(smDepths.depth_0_1cm) ?? baseVdr;
+  const depth1_3 = readDepth(smDepths.depth_1_3cm) ?? (baseVdr !== null ? baseVdr * 1.05 : null);
+  const depth3_9 = readDepth(smDepths.depth_3_9cm) ?? (baseVdr !== null ? baseVdr * 1.10 : null);
+  const depth9_27 = readDepth(smDepths.depth_9_27cm) ?? (baseVdr !== null ? baseVdr * 1.18 : null);
+  const depth27_81 = readDepth(smDepths.depth_27_81cm) ?? (baseVdr !== null ? baseVdr * 1.25 : null);
+
+  const soilHorizons = [
+    { depth: '0-1 cm', val: depth0_1, desc: 'Topsoil Horizon', fill: depth0_1 !== null ? Math.min(100, (depth0_1 / 0.55) * 100) : 0 },
+    { depth: '1-3 cm', val: depth1_3, desc: 'Upper Infiltration Layer', fill: depth1_3 !== null ? Math.min(100, (depth1_3 / 0.55) * 100) : 0 },
+    { depth: '3-9 cm', val: depth3_9, desc: 'Root Zone Horizon', fill: depth3_9 !== null ? Math.min(100, (depth3_9 / 0.55) * 100) : 0 },
+    { depth: '9-27 cm', val: depth9_27, desc: 'Subsoil Strata', fill: depth9_27 !== null ? Math.min(100, (depth9_27 / 0.55) * 100) : 0 },
+    { depth: '27-81 cm', val: depth27_81, desc: 'Deep Vadose Layer', fill: depth27_81 !== null ? Math.min(100, (depth27_81 / 0.55) * 100) : 0 },
+  ];
+
+  const hourlyRows = weatherData?.hourly?.slice(0, 24) ?? [];
+  const value = (item: number | null | undefined, digits = 1) => item == null ? '-' : item.toFixed(digits);
 
   return (
-    <section className="space-y-3">
-      {telemetry.isSynthetic && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-300 backdrop-blur-md">
-          <span className="flex items-center gap-2">
-            <AlertTriangle size={15} className="text-amber-400 animate-pulse" />
-            <span>SIMULATION / SYNTHETIC HYDROLOGY MODE</span>
+    <section className="glass-panel rounded-2xl p-5 shadow-2xl space-y-4.5" data-testid="hydrological-status-section">
+      {/* Header bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="grid h-7 w-7 place-items-center rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <Activity size={15} />
+          </div>
+          <div>
+            <h3 className="mono text-xs font-bold tracking-widest text-white">HYDROLOGICAL STATUS</h3>
+            <div className="text-[11px] text-slate-400">
+              Open-Meteo NWP Stream · {telemetry?.isSynthetic ? 'Synthetic Cloudburst Surge' : 'Live Sensor Telemetry'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-300 border border-teal-500/30">
+            WEATHER: OPEN-METEO
           </span>
-          <span className="mono text-xs text-amber-200 bg-amber-500/20 px-2 py-0.5 rounded-full">{telemetry.dataStatus}</span>
+          <span className={`mono text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            telemetry?.isSynthetic
+              ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+              : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+          }`}>
+            GAUGE: {telemetry?.isSynthetic ? 'SIMULATED SURGE' : 'LIVE TELEMETRY'}
+          </span>
         </div>
-      )}
+      </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {/* 1. Rainfall Intensity */}
+      {/* TOP ROW: 4 Primary KPI Status Cards */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        {/* 1. Rainfall */}
         <div
-          className="glass-card rounded-2xl p-5 transition-all glass-card-hover"
-          data-testid="telemetry-rainfall-intensity"
+          className={`glass-card rounded-xl p-4 transition-all glass-card-hover border ${
+            rainfallDanger ? 'border-rose-500/50 bg-rose-950/20' : 'border-white/10'
+          }`}
+          data-testid="hydro-card-rainfall"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className={`grid h-8 w-8 place-items-center rounded-lg ${rainfallDanger ? 'bg-rose-500/20 text-rose-400' : 'bg-teal-500/15 text-teal-400'}`}>
-                <CloudRain size={17} className={rainfallDanger ? 'animate-bounce' : ''} />
-              </div>
-              <span className="text-xs font-bold tracking-wider text-slate-200">
-                RAINFALL INTENSITY
-              </span>
-            </div>
-            <span
-              className="mono rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-              style={{
-                color: rainfallDanger ? '#f43f5e' : '#10b981',
-                backgroundColor: rainfallDanger ? 'rgba(244, 63, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-              }}
-            >
-              {telemetry.rainfallMmHr === null
-                ? 'UNAVAILABLE'
-                : rainfallDanger
-                ? 'SURGE CELL'
-                : 'NOMINAL'}
+          <div className="flex items-center justify-between text-xs font-bold tracking-wider text-slate-300">
+            <span>Rainfall</span>
+            <CloudRain size={15} className={rainfallDanger ? 'text-rose-400 animate-bounce' : 'text-teal-400'} />
+          </div>
+          <div className="mono mt-2 flex items-baseline gap-1.5 text-2xl sm:text-3xl font-extrabold text-white">
+            {rainfallNow ?? '-'}
+            <span className="text-xs font-medium text-slate-400">mm/hr</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold border-t border-white/5 pt-1.5">
+            <span className={`mono rounded px-1.5 py-0.2 ${rainfallDanger ? 'bg-rose-500/20 text-rose-300' : 'bg-teal-500/20 text-teal-300'}`}>
+              NOW
             </span>
-          </div>
-
-          <div className="mono mt-3.5 flex items-baseline gap-2 text-4xl font-extrabold text-white">
-            {telemetry.rainfallMmHr !== null ? telemetry.rainfallMmHr : '—'}
-            <span className="text-sm font-semibold text-slate-400">mm/hr</span>
-          </div>
-
-          <div className="mt-4">
-            <div className="flex justify-between text-xs font-medium text-slate-400">
-              <span>Source: {telemetry.rainfallSource}</span>
-              <span className="mono font-semibold text-slate-300">Threshold: 50 mm/hr</span>
-            </div>
-            <div className="mt-2 h-2 w-full bg-slate-800/80 overflow-hidden rounded-full">
-              <div
-                className={`h-full transition-all duration-500 rounded-full ${
-                  rainfallDanger ? 'bg-gradient-to-r from-orange-500 to-rose-500' : 'bg-gradient-to-r from-teal-500 to-emerald-400'
-                }`}
-                style={{
-                  width: `${Math.min(100, ((telemetry.rainfallMmHr ?? 0) / 80) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          <div
-            className="mt-3.5 flex items-center gap-2 text-xs font-medium"
-            style={{ color: rainfallDanger ? '#f43f5e' : '#10b981' }}
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: rainfallDanger ? '#f43f5e' : '#10b981' }}
-            />
-            <span>
-              {telemetry.rainfallMmHr === null
-                ? 'No reading reported'
-                : rainfallDanger
-                ? 'Cloudburst threshold breached'
-                : 'Precipitation within safe bounds'}
-            </span>
+            <span className="mono text-slate-400 text-[10px]">Open-Meteo</span>
           </div>
         </div>
 
-        {/* 2. River Level Gauge */}
+        {/* 2. Rain 24h */}
         <div
-          className="glass-card rounded-2xl p-5 transition-all glass-card-hover"
-          data-testid="telemetry-river-level"
+          className="glass-card rounded-xl p-4 transition-all glass-card-hover border border-white/10"
+          data-testid="hydro-card-rain24h"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className={`grid h-8 w-8 place-items-center rounded-lg ${riverDanger ? 'bg-rose-500/20 text-rose-400' : 'bg-teal-500/15 text-teal-400'}`}>
-                <Gauge size={17} />
-              </div>
-              <span className="text-xs font-bold tracking-wider text-slate-200">
-                RIVER LEVEL GAUGE
-              </span>
-            </div>
-            <span
-              className="mono rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-              style={{
-                color: riverDanger ? '#f43f5e' : '#10b981',
-                backgroundColor: riverDanger ? 'rgba(244, 63, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-              }}
-            >
-              {telemetry.waterLevelCm === null
-                ? 'UNAVAILABLE'
-                : riverDanger
-                ? 'ABOVE DANGER'
-                : 'CLEAR CHANNEL'}
+          <div className="flex items-center justify-between text-xs font-bold tracking-wider text-slate-300">
+            <span>Rain 24h</span>
+            <Clock size={15} className="text-teal-400" />
+          </div>
+          <div className="mono mt-2 flex items-baseline gap-1.5 text-2xl sm:text-3xl font-extrabold text-white">
+            {rain24h !== null && rain24h !== undefined ? Math.round(rain24h) : '-'}
+            <span className="text-xs font-medium text-slate-400">mm</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold border-t border-white/5 pt-1.5">
+            <span className="mono rounded px-1.5 py-0.2 bg-teal-500/20 text-teal-300">
+              ACCUMULATED
             </span>
-          </div>
-
-          <div className="mono mt-3.5 flex items-baseline gap-2 text-4xl font-extrabold text-white">
-            {telemetry.waterLevelCm !== null ? telemetry.waterLevelCm : '—'}
-            <span className="text-sm font-semibold text-slate-400">cm</span>
-          </div>
-
-          <div className="mt-4">
-            <div className="flex justify-between text-xs font-medium text-slate-400">
-              <span className="truncate">{telemetry.sensorId}</span>
-              <span className="mono font-semibold text-slate-300">Gauge level</span>
-            </div>
-            <div className="mt-2 h-2 w-full bg-slate-800/80 overflow-hidden rounded-full">
-              <div
-                className={`h-full transition-all duration-500 rounded-full ${
-                  riverDanger ? 'bg-gradient-to-r from-orange-500 to-rose-500' : 'bg-gradient-to-r from-teal-500 to-emerald-400'
-                }`}
-                style={{
-                  width: `${Math.min(100, ((telemetry.waterLevelCm ?? 0) / 160) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          <div
-            className="mt-3.5 flex items-center gap-2 text-xs font-medium"
-            style={{ color: riverDanger ? '#f43f5e' : '#10b981' }}
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: riverDanger ? '#f43f5e' : '#10b981' }}
-            />
-            <span>
-              {telemetry.waterLevelCm === null
-                ? 'Gauge level unavailable'
-                : riverDanger
-                ? 'Flood stage threshold elevated'
-                : 'Operating within channel capacity'}
-            </span>
+            <span className="mono text-slate-400 text-[10px]">Rolling NWP</span>
           </div>
         </div>
 
-        {/* 3. Rate of Rise */}
+        {/* 3. River */}
         <div
-          className="glass-card rounded-2xl p-5 transition-all glass-card-hover"
-          data-testid="telemetry-rate-of-rise"
+          className={`glass-card rounded-xl p-4 transition-all glass-card-hover border ${
+            riverDanger ? 'border-amber-500/50 bg-amber-950/20' : 'border-white/10'
+          }`}
+          data-testid="hydro-card-river"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className={`grid h-8 w-8 place-items-center rounded-lg ${rateDanger ? 'bg-rose-500/20 text-rose-400' : 'bg-teal-500/15 text-teal-400'}`}>
-                <Activity size={17} />
-              </div>
-              <span className="text-xs font-bold tracking-wider text-slate-200">
-                RATE OF RISE
-              </span>
-            </div>
-            <span
-              className="mono rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-              style={{
-                color: rateDanger ? '#f43f5e' : (telemetry.rateOfRiseCmMin ?? 0) > 1 ? '#f59e0b' : '#10b981',
-                backgroundColor: rateDanger
-                  ? 'rgba(244, 63, 94, 0.15)'
-                  : (telemetry.rateOfRiseCmMin ?? 0) > 1
-                  ? 'rgba(245, 158, 11, 0.15)'
-                  : 'rgba(16, 185, 129, 0.15)',
-              }}
-            >
-              {telemetry.rateOfRiseCmMin === null
-                ? 'UNAVAILABLE'
-                : rateDanger
-                ? 'SURGE EXPONENTIAL'
-                : (telemetry.rateOfRiseCmMin ?? 0) > 1
-                ? 'MODERATE'
-                : 'STABLE'}
+          <div className="flex items-center justify-between text-xs font-bold tracking-wider text-slate-300">
+            <span>River</span>
+            <Gauge size={15} className={riverDanger ? 'text-amber-400' : 'text-teal-400'} />
+          </div>
+          <div className="mono mt-2 flex items-baseline gap-1.5 text-2xl sm:text-3xl font-extrabold text-white">
+            {riverLevelM.toFixed(2)}
+            <span className="text-xs font-medium text-slate-400">m</span>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold border-t border-white/5 pt-1.5">
+            <span className={`mono rounded px-1.5 py-0.2 ${riverDanger ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+              NOW
             </span>
-          </div>
-
-          <div className="mono mt-3.5 flex items-baseline gap-2 text-4xl font-extrabold text-white">
-            {telemetry.rateOfRiseCmMin !== null ? telemetry.rateOfRiseCmMin.toFixed(2) : '—'}
-            <span className="text-sm font-semibold text-slate-400">cm/min</span>
-          </div>
-
-          <div className="mt-4">
-            <div className="flex justify-between text-xs font-medium text-slate-400">
-              <span>Status: {telemetry.status}</span>
-              <span className="mono font-semibold text-slate-300">Hydro rules</span>
-            </div>
-            <div className="mt-2 h-2 w-full bg-slate-800/80 overflow-hidden rounded-full">
-              <div
-                className={`h-full transition-all duration-500 rounded-full ${
-                  rateDanger ? 'bg-gradient-to-r from-orange-500 to-rose-500' : (telemetry.rateOfRiseCmMin ?? 0) > 1 ? 'bg-amber-400' : 'bg-gradient-to-r from-teal-500 to-emerald-400'
-                }`}
-                style={{
-                  width: `${Math.min(100, ((telemetry.rateOfRiseCmMin ?? 0) / 5) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-
-          <div
-            className="mt-3.5 flex items-center gap-2 text-xs font-medium"
-            style={{
-              color: rateDanger ? '#f43f5e' : (telemetry.rateOfRiseCmMin ?? 0) > 1 ? '#f59e0b' : '#10b981',
-            }}
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{
-                backgroundColor: rateDanger
-                  ? '#f43f5e'
-                  : (telemetry.rateOfRiseCmMin ?? 0) > 1
-                  ? '#f59e0b'
-                  : '#10b981',
-              }}
-            />
-            <span>
-              {telemetry.rateOfRiseCmMin === null
-                ? 'Rate of rise unknown'
-                : rateDanger
-                ? 'Immediate action required — flash surge'
-                : (telemetry.rateOfRiseCmMin ?? 0) > 1
-                ? 'Gradual accumulation detected'
-                : 'Normal hydro-balance'}
-            </span>
+            <span className="mono text-slate-400 text-[10px]">Gauge {telemetry.sensorId}</span>
           </div>
         </div>
+
+        {/* 4. Rate of Rise */}
+        <div
+          className={`glass-card rounded-xl p-4 transition-all glass-card-hover border ${
+            rateDanger ? 'border-rose-500/50 bg-rose-950/20' : 'border-white/10'
+          }`}
+          data-testid="hydro-card-rate-of-rise"
+        >
+          <div className="flex items-center justify-between text-xs font-bold tracking-wider text-slate-300">
+            <span>Rate of Rise</span>
+            <Activity size={15} className={rateDanger ? 'text-rose-400 animate-pulse' : 'text-amber-400'} />
+          </div>
+          <div className="mono mt-2 flex items-baseline gap-1.5 text-2xl sm:text-3xl font-extrabold text-white">
+            {rateOfRiseStr}
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] font-semibold border-t border-white/5 pt-1.5">
+            <span
+              className={`mono rounded px-1.5 py-0.2 font-bold ${
+                rateDanger
+                  ? 'bg-rose-500/25 text-rose-300 animate-pulse'
+                  : rateOfRise > 1.0
+                  ? 'bg-amber-500/20 text-amber-300'
+                  : 'bg-emerald-500/20 text-emerald-300'
+              }`}
+            >
+              {rateLabel}
+            </span>
+            <span className="mono text-slate-400 text-[10px]">dh/dt rules</span>
+          </div>
+        </div>
+      </div>
+
+      {/* DYNAMIC HOURLY STATISTICAL RAINFALL & RIVER HYDROGRAPH PLOT */}
+      <RainfallRiverPlot
+        weatherData={weatherData}
+        telemetry={telemetry}
+        regionName={regionName}
+      />
+
+      {/* SOIL / CATCHMENT CONDITION PANEL */}
+      <div className="glass-card rounded-xl p-4.5 border border-white/10 space-y-3">
+        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-white">
+            <Droplets size={14} className="text-teal-400" />
+            <span>SOIL / CATCHMENT CONDITION</span>
+          </div>
+          <span className="mono text-[10px] text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/20">
+            m³/m³ VWC
+          </span>
+        </div>
+
+        <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+          Soil moisture horizons
+        </div>
+
+        {/* 5 Soil Moisture Depth Horizons Stack */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+          {soilHorizons.map((layer) => (
+            <div key={layer.depth} className="rounded-lg bg-slate-900/60 p-2.5 border border-white/5 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="mono font-bold text-slate-200">{layer.depth}</span>
+                <span className="mono font-extrabold text-teal-300">{layer.val !== null ? layer.val.toFixed(2) : '-'}</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    Number(layer.val) > 0.45 ? 'bg-gradient-to-r from-amber-500 to-rose-500' : 'bg-gradient-to-r from-teal-500 to-emerald-400'
+                  }`}
+                  style={{ width: `${layer.fill}%` }}
+                />
+              </div>
+              <div className="text-[10px] text-slate-400 truncate">{layer.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-white/5 pt-2">
+          <span>Provider: <strong className="text-slate-300 mono">Open-Meteo</strong></span>
+          <span>Unit: <strong className="text-teal-300 mono">m³/m³ (Volumetric Water Content)</strong></span>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-xl border border-white/10 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-2.5">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-white">
+            <Clock size={14} className="text-teal-400" />
+            <span>REGIONAL HOURLY WEATHER</span>
+          </div>
+          <span className="mono text-[10px] text-slate-400">{hourlyRows.length} forecast hours · Open-Meteo</span>
+        </div>
+        {hourlyRows.length === 0 ? (
+          <div className="py-5 text-center text-xs text-slate-500">Hourly weather unavailable for this region.</div>
+        ) : (
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-[1320px] w-full text-left text-[11px]">
+              <thead className="text-[10px] uppercase tracking-wider text-slate-500">
+                <tr className="border-b border-white/10">
+                  <th className="sticky left-0 bg-slate-950/95 px-2 py-2">Time</th>
+                  <th className="px-2 py-2">Precip</th><th className="px-2 py-2">Rain</th><th className="px-2 py-2">Showers</th>
+                  <th className="px-2 py-2">0-1 cm</th><th className="px-2 py-2">1-3 cm</th><th className="px-2 py-2">3-9 cm</th><th className="px-2 py-2">9-27 cm</th><th className="px-2 py-2">27-81 cm</th>
+                  <th className="px-2 py-2">Temp</th><th className="px-2 py-2">RH</th><th className="px-2 py-2">Pressure</th><th className="px-2 py-2">Cloud</th><th className="px-2 py-2">Wind</th><th className="px-2 py-2">Gust</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-slate-300">
+                {hourlyRows.map((row) => (
+                  <tr key={row.timestamp}>
+                    <td className="sticky left-0 whitespace-nowrap bg-slate-950/95 px-2 py-2 font-semibold text-white">{new Date(row.timestamp).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-2 py-2">{value(row.precipitation)} mm</td><td className="px-2 py-2">{value(row.rain)} mm</td><td className="px-2 py-2">{value(row.showers)} mm</td>
+                    <td className="px-2 py-2">{value(row.soil_moisture?.depth_0_1cm?.value, 2)}</td><td className="px-2 py-2">{value(row.soil_moisture?.depth_1_3cm?.value, 2)}</td><td className="px-2 py-2">{value(row.soil_moisture?.depth_3_9cm?.value, 2)}</td><td className="px-2 py-2">{value(row.soil_moisture?.depth_9_27cm?.value, 2)}</td><td className="px-2 py-2">{value(row.soil_moisture?.depth_27_81cm?.value, 2)}</td>
+                    <td className="px-2 py-2">{value(row.temperature_2m)} C</td><td className="px-2 py-2">{value(row.relative_humidity_2m)}%</td><td className="px-2 py-2">{value(row.surface_pressure)} hPa</td><td className="px-2 py-2">{value(row.cloud_cover)}%</td><td className="px-2 py-2">{value(row.wind_speed_10m)} km/h</td><td className="px-2 py-2">{value(row.wind_gusts_10m)} km/h</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1479,6 +1477,63 @@ function OperatorManualModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+const COMMAND_DECK_SECTIONS = [
+  { id: 'situation', label: 'Situation', icon: Activity, num: '01' },
+  { id: 'map', label: 'Map', icon: MapPinned, num: '02' },
+  { id: 'hydrology', label: 'Hydrology', icon: Droplets, num: '03' },
+  { id: 'prediction', label: 'Prediction', icon: GitBranch, num: '04' },
+  { id: 'impact', label: 'Impact', icon: Users, num: '05' },
+  { id: 'response', label: 'Response', icon: Navigation, num: '06' },
+  { id: 'data', label: 'Data', icon: Radio, num: '07' },
+] as const;
+
+type CommandDeckSectionId = (typeof COMMAND_DECK_SECTIONS)[number]['id'];
+
+function CommandDeckNav({
+  activeSection,
+  onNavigate,
+}: {
+  activeSection: CommandDeckSectionId;
+  onNavigate: (id: CommandDeckSectionId) => void;
+}) {
+  return (
+    <nav
+      aria-label="Command Deck Section Navigation"
+      data-testid="command-deck-nav"
+      className="sticky top-[68px] z-20 mb-5 -mx-4 border-b border-white/[0.08] bg-[#070b12]/90 px-4 py-2.5 backdrop-blur-xl md:-mx-8 md:px-8"
+    >
+      <div className="mx-auto flex max-w-[1640px] items-center justify-between gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto py-0.5 tactical-scroll no-scrollbar w-full">
+          {COMMAND_DECK_SECTIONS.map((sec) => {
+            const Icon = sec.icon;
+            const isActive = activeSection === sec.id;
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                data-testid={`nav-section-${sec.id}`}
+                onClick={() => onNavigate(sec.id)}
+                className={`flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold tracking-wider transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.15)]'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.04] border border-white/[0.05]'
+                }`}
+              >
+                <span className="mono text-[10px] text-amber-400/80 font-semibold">{sec.num}</span>
+                <Icon size={14} className={isActive ? 'text-amber-400' : 'text-slate-400'} />
+                <span className="mono uppercase">{sec.label}</span>
+                {isActive && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_#f59e0b]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 function CommandDeck({
   onOverview,
   region,
@@ -1495,6 +1550,9 @@ function CommandDeck({
   const currentRegionId = region?.region_id ?? (regions[0]?.region_id || 'mandakini');
   const data = useFlashShieldData(currentRegionId);
   const [showActions, setShowActions] = useState(false);
+  const [activeSection, setActiveSection] = useState<CommandDeckSectionId>('situation');
+  const isManualScrolling = useRef(false);
+
   const selected = data.selected;
   const overall = data.telemetry?.status ?? 'NORMAL';
   const actionLabel = data.incidentAcknowledged ? 'ORDER ACKNOWLEDGED' : 'REVIEW INCIDENT DIRECTIVE';
@@ -1511,175 +1569,237 @@ function CommandDeck({
     await data.reset();
   };
 
+  const scrollToSection = (id: CommandDeckSectionId) => {
+    setActiveSection(id);
+    const el = document.getElementById(id);
+    if (el) {
+      isManualScrolling.current = true;
+      const navOffset = 135;
+      const elementPosition = el.getBoundingClientRect().top + window.pageYOffset;
+      const offsetPosition = Math.max(0, elementPosition - navOffset);
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth',
+      });
+
+      window.history.replaceState(null, '', `#${id}`);
+
+      setTimeout(() => {
+        isManualScrolling.current = false;
+      }, 700);
+    }
+  };
+
+  // Scroll spy to dynamically track the active section
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isManualScrolling.current) return;
+      const navOffset = 145;
+      const scrollPosition = window.scrollY + navOffset;
+
+      let current: CommandDeckSectionId = COMMAND_DECK_SECTIONS[0].id;
+      for (const sec of COMMAND_DECK_SECTIONS) {
+        const el = document.getElementById(sec.id);
+        if (el) {
+          const top = el.getBoundingClientRect().top + window.pageYOffset;
+          if (top <= scrollPosition) {
+            current = sec.id;
+          }
+        }
+      }
+      setActiveSection(current);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Sync hash on initial load if present
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '') as CommandDeckSectionId;
+    if (hash && COMMAND_DECK_SECTIONS.some((s) => s.id === hash)) {
+      setTimeout(() => {
+        scrollToSection(hash);
+      }, 150);
+    }
+  }, []);
+
   return (
-    <main className="mx-auto max-w-[1640px] px-4 pb-16 pt-5 md:px-8">
-      {/* Top Mission Control Toolbar */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-slate-900/70 p-4 shadow-xl backdrop-blur-xl">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-400">
-            <button
-              onClick={onOverview}
-              data-testid="button-breadcrumb-overview"
-              className="hover:text-amber-400 transition-colors"
-            >
-              NATIONAL OVERVIEW
-            </button>
-            <span>/</span>
-            <span className="text-white font-bold">{region?.name.toUpperCase() ?? 'DEPLOYMENT'}</span>
-          </div>
+    <main className="mx-auto max-w-[1640px] px-4 pb-16 pt-2 md:px-8">
+      {/* In-page Command Deck Section Navigation */}
+      <CommandDeckNav activeSection={activeSection} onNavigate={scrollToSection} />
 
-          <div className="mt-1.5 flex items-center gap-3.5">
-            <h1 className="text-2xl font-extrabold tracking-tight text-white">
-              {region?.name ?? 'Loading Region…'}
-            </h1>
-            <StatusBadge status={overall} />
-          </div>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {/* Region Dropdown */}
-          <label className="sr-only" htmlFor="region-select">
-            Deployment region
-          </label>
-          <select
-            id="region-select"
-            value={currentRegionId}
-            onChange={(event) => onRegionChange(event.target.value)}
-            data-testid="select-deployment-region"
-            className="min-h-11 rounded-xl border border-white/10 bg-slate-950/80 px-4 text-xs font-bold tracking-wider text-slate-100 outline-none transition-all hover:border-amber-500/50 focus:border-amber-500"
-          >
-            {regions.map((item) => (
-              <option key={item.region_id} value={item.region_id}>
-                {item.name} ({item.state})
-              </option>
-            ))}
-          </select>
-
-          {/* Action List Toggle */}
-          <button
-            onClick={() => setShowActions(!showActions)}
-            data-testid="button-action-list"
-            className={`flex min-h-11 items-center gap-2 rounded-xl border px-4 text-xs font-bold tracking-wider transition-all ${
-              showActions
-                ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
-                : 'border-white/10 bg-slate-950/80 text-slate-200 hover:border-amber-500/40'
-            }`}
-          >
-            <Bell size={15} className={showActions ? 'text-amber-400' : 'text-slate-400'} />
-            <span>ACTIONS</span>
-            <ChevronDown size={15} className={`transition-transform ${showActions ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* Reset Baseline */}
-          <button
-            onClick={handleReset}
-            disabled={data.isSimulating || data.isLoading}
-            data-testid="button-reset-demo"
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-4 text-xs font-bold tracking-wider text-slate-200 transition-all hover:border-amber-500/40 disabled:opacity-50"
-          >
-            <RefreshCcw size={15} className={data.isSimulating ? 'animate-spin' : ''} />
-            <span>RESET</span>
-          </button>
-
-          {/* Trigger Cloudburst Simulation */}
-          <button
-            onClick={handleSimulate}
-            disabled={data.isLoading || data.isSimulating || data.incidentAcknowledged}
-            data-testid="button-trigger-cloudburst"
-            className={`flex min-h-11 items-center gap-2.5 rounded-xl px-5 text-xs font-extrabold tracking-wider transition-all disabled:cursor-wait disabled:opacity-50 ${
-              overall === 'CRITICAL'
-                ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse'
-                : 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-orange-500/25 hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] active:scale-[0.98]'
-            }`}
-          >
-            <CloudRain size={18} />
-            <span>{data.isSimulating ? 'RUNNING SURGE…' : 'TRIGGER CLOUDBURST'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Simulation Banner */}
-      {data.telemetry?.isSynthetic && (
-        <div className="mb-5 flex items-center justify-between rounded-2xl border border-amber-500/40 bg-amber-500/15 p-4 text-amber-200 shadow-xl backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <AlertTriangle size={20} className="text-amber-400 animate-pulse shrink-0" />
+      <div className="space-y-6">
+        {/* 1. SITUATION SECTION (#situation) */}
+        <section id="situation" className="scroll-mt-32 space-y-4" data-testid="section-situation">
+          {/* Top Mission Control Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-slate-900/70 p-4 shadow-xl backdrop-blur-xl">
             <div>
-              <div className="font-extrabold tracking-wider text-white text-sm">
-                SIMULATION MODE ACTIVE
+              <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-slate-400">
+                <button
+                  onClick={onOverview}
+                  data-testid="button-breadcrumb-overview"
+                  className="hover:text-amber-400 transition-colors"
+                >
+                  NATIONAL OVERVIEW
+                </button>
+                <span>/</span>
+                <span className="text-white font-bold">{region?.name.toUpperCase() ?? 'DEPLOYMENT'}</span>
               </div>
-              <div className="text-xs text-amber-300 font-medium">
-                Synthetic cloudburst scenario running for {region?.name ?? currentRegionId}. Telemetry reflects simulation injection, not live sensors.
+
+              <div className="mt-1.5 flex items-center gap-3.5">
+                <h1 className="text-2xl font-extrabold tracking-tight text-white">
+                  {region?.name ?? 'Loading Region…'}
+                </h1>
+                <StatusBadge status={overall} />
               </div>
+            </div>
+
+            {/* Action Controls */}
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {/* Region Dropdown */}
+              <label className="sr-only" htmlFor="region-select">
+                Deployment region
+              </label>
+              <select
+                id="region-select"
+                value={currentRegionId}
+                onChange={(event) => onRegionChange(event.target.value)}
+                data-testid="select-deployment-region"
+                className="min-h-11 rounded-xl border border-white/10 bg-slate-950/80 px-4 text-xs font-bold tracking-wider text-slate-100 outline-none transition-all hover:border-amber-500/50 focus:border-amber-500"
+              >
+                {regions.map((item) => (
+                  <option key={item.region_id} value={item.region_id}>
+                    {item.name} ({item.state})
+                  </option>
+                ))}
+              </select>
+
+              {/* Action List Toggle */}
+              <button
+                onClick={() => setShowActions(!showActions)}
+                data-testid="button-action-list"
+                className={`flex min-h-11 items-center gap-2 rounded-xl border px-4 text-xs font-bold tracking-wider transition-all ${
+                  showActions
+                    ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
+                    : 'border-white/10 bg-slate-950/80 text-slate-200 hover:border-amber-500/40'
+                }`}
+              >
+                <Bell size={15} className={showActions ? 'text-amber-400' : 'text-slate-400'} />
+                <span>ACTIONS</span>
+                <ChevronDown size={15} className={`transition-transform ${showActions ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Reset Baseline */}
+              <button
+                onClick={handleReset}
+                disabled={data.isSimulating || data.isLoading}
+                data-testid="button-reset-demo"
+                className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-slate-950/80 px-4 text-xs font-bold tracking-wider text-slate-200 transition-all hover:border-amber-500/40 disabled:opacity-50"
+              >
+                <RefreshCcw size={15} className={data.isSimulating ? 'animate-spin' : ''} />
+                <span>RESET</span>
+              </button>
+
+              {/* Trigger Cloudburst Simulation */}
+              <button
+                onClick={handleSimulate}
+                disabled={data.isLoading || data.isSimulating || data.incidentAcknowledged}
+                data-testid="button-trigger-cloudburst"
+                className={`flex min-h-11 items-center gap-2.5 rounded-xl px-5 text-xs font-extrabold tracking-wider transition-all disabled:cursor-wait disabled:opacity-50 ${
+                  overall === 'CRITICAL'
+                    ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30 animate-pulse'
+                    : 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-lg shadow-orange-500/25 hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] active:scale-[0.98]'
+                }`}
+              >
+                <CloudRain size={18} />
+                <span>{data.isSimulating ? 'RUNNING SURGE…' : 'TRIGGER CLOUDBURST'}</span>
+              </button>
             </div>
           </div>
-          <button
-            onClick={handleReset}
-            className="rounded-xl bg-amber-500/30 px-3.5 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/50 border border-amber-400/40 transition-colors"
-          >
-            RESTORE BASELINE
-          </button>
-        </div>
-      )}
 
-      {/* Slide-down Action List Banner */}
-      {showActions && (
-        <div
-          className="mb-5 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2"
-          data-testid="panel-action-list"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold tracking-widest text-amber-400">
-              <Siren size={16} />
-              <span>FIELD ACTION PROTOCOL / {selected?.name ?? region?.name}</span>
+          {/* Simulation Banner */}
+          {data.telemetry?.isSynthetic && (
+            <div className="flex items-center justify-between rounded-2xl border border-amber-500/40 bg-amber-500/15 p-4 text-amber-200 shadow-xl backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <AlertTriangle size={20} className="text-amber-400 animate-pulse shrink-0" />
+                <div>
+                  <div className="font-extrabold tracking-wider text-white text-sm">
+                    SIMULATION MODE ACTIVE
+                  </div>
+                  <div className="text-xs text-amber-300 font-medium">
+                    Synthetic cloudburst scenario running for {region?.name ?? currentRegionId}. Telemetry reflects simulation injection, not live sensors.
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleReset}
+                className="rounded-xl bg-amber-500/30 px-3.5 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/50 border border-amber-400/40 transition-colors"
+              >
+                RESTORE BASELINE
+              </button>
             </div>
-            <button
-              onClick={() => setShowActions(false)}
-              aria-label="Close action list"
-              data-testid="button-close-action-list"
-              className="rounded-lg p-1 text-slate-400 hover:text-white hover:bg-white/10"
+          )}
+
+          {/* Slide-down Action List Banner */}
+          {showActions && (
+            <div
+              className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2"
+              data-testid="panel-action-list"
             >
-              <X size={18} />
-            </button>
-          </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold tracking-widest text-amber-400">
+                  <Siren size={16} />
+                  <span>FIELD ACTION PROTOCOL / {selected?.name ?? region?.name}</span>
+                </div>
+                <button
+                  onClick={() => setShowActions(false)}
+                  aria-label="Close action list"
+                  data-testid="button-close-action-list"
+                  className="rounded-lg p-1 text-slate-400 hover:text-white hover:bg-white/10"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-          <div className="mt-4 grid gap-3 text-sm text-slate-200 font-medium sm:grid-cols-3">
-            <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-slate-900/60 p-3">
-              <Siren size={16} className="text-amber-400" />
-              <span>1. Sound settlement alarm</span>
+              <div className="mt-4 grid gap-3 text-sm text-slate-200 font-medium sm:grid-cols-3">
+                <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-slate-900/60 p-3">
+                  <Siren size={16} className="text-amber-400" />
+                  <span>1. Sound settlement alarm</span>
+                </div>
+                <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-slate-900/60 p-3">
+                  <Users size={16} className="text-amber-400" />
+                  <span>2. Deploy NDRF field team</span>
+                </div>
+                <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-slate-900/60 p-3">
+                  <RouteIcon size={16} className="text-amber-400" />
+                  <span>3. Open the designated evacuation corridor</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-slate-900/60 p-3">
-              <Users size={16} className="text-amber-400" />
-              <span>2. Deploy NDRF field team</span>
-            </div>
-            <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-slate-900/60 p-3">
-              <RouteIcon size={16} className="text-amber-400" />
-              <span>3. Open the designated evacuation corridor</span>
-            </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Backend Error Banner if any */}
-      {data.error && (
-        <div
-          className="mb-5 rounded-2xl border border-rose-500/50 bg-rose-500/15 px-5 py-3.5 text-sm text-rose-200 font-medium flex items-center justify-between backdrop-blur-md"
-          role="alert"
-        >
-          <span className="flex items-center gap-2.5">
-            <AlertOctagon size={18} />
-            <span>BACKEND ERROR · {data.error}</span>
-          </span>
-          <button onClick={data.reset} className="underline text-sm font-bold text-white hover:text-rose-200">
-            Retry
-          </button>
-        </div>
-      )}
+          {/* Backend Error Banner if any */}
+          {data.error && (
+            <div
+              className="rounded-2xl border border-rose-500/50 bg-rose-500/15 px-5 py-3.5 text-sm text-rose-200 font-medium flex items-center justify-between backdrop-blur-md"
+              role="alert"
+            >
+              <span className="flex items-center gap-2.5">
+                <AlertOctagon size={18} />
+                <span>BACKEND ERROR · {data.error}</span>
+              </span>
+              <button onClick={data.reset} className="underline text-sm font-bold text-white hover:text-rose-200">
+                Retry
+              </button>
+            </div>
+          )}
+        </section>
 
-      {/* Primary Workspace Layout */}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        {/* Left / Center: Tactical Map & Telemetry Strip */}
-        <div className="space-y-5">
+        {/* 2. MAP SECTION (#map) */}
+        <section id="map" className="scroll-mt-32 space-y-4" data-testid="section-map">
           <TacticalLeafletMap
             telemetry={data.telemetry}
             villages={data.villages}
@@ -1688,79 +1808,101 @@ function CommandDeck({
             selectedVillage={data.selectedVillage}
             onSelectVillage={data.setSelectedVillage}
           />
-          <TelemetryStrip telemetry={data.telemetry} />
-        </div>
+        </section>
 
-        {/* Right Sidebar: Ingestion Status & Village Ledger */}
-        <aside className="space-y-5">
-          {/* Telemetry Socket Station Card */}
-          <div className="glass-panel rounded-2xl p-4.5 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-white">
-                <Radio size={16} className="text-teal-400" />
-                <span>DATA INGESTION</span>
-              </div>
-              <span className="flex items-center gap-2 text-xs font-bold text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-full border border-teal-500/20">
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    data.ws.isConnected ? 'bg-teal-400 pulse-soft' : 'bg-slate-500'
-                  }`}
-                />
-                <span>
-                  {data.isLoading
-                    ? 'CONNECTING'
-                    : data.ws.isConnected
-                    ? data.telemetry?.isSynthetic
-                      ? 'SIMULATION'
-                      : 'LIVE SOCKET'
-                    : 'OFFLINE'}
-                </span>
-              </span>
-            </div>
-
-            <div className="mono mt-3 text-xs text-slate-300 font-semibold flex items-center justify-between border-t border-white/10 pt-3">
-              <span className="truncate">{data.telemetry?.sensorId ?? 'Awaiting sensor'}</span>
-              <span className="text-teal-400">
-                {data.ws.isConnected ? '1.0 Hz stream' : 'Reconnecting…'}
-              </span>
-            </div>
-          </div>
-
-          {/* Village Ledger */}
-          <VillageLedger
-            villages={data.villages}
-            selectedId={data.selectedVillage}
-            onSelect={data.setSelectedVillage}
+        {/* 3. HYDROLOGY SECTION (#hydrology) */}
+        <section id="hydrology" className="scroll-mt-32 space-y-5" data-testid="section-hydrology">
+          <CurrentWeatherSection weatherData={data.weatherData} />
+          <HydrologicalStatusSection
+            telemetry={data.telemetry}
+            weatherData={data.weatherData}
+            regionName={region?.name}
           />
-        </aside>
-      </div>
+        </section>
 
-      {/* Bottom 3-Column Tactical Insights */}
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr_1fr]">
-        <Feed feedEvents={data.feedEvents} />
-        <Factors detailedRisk={data.detailedRisk} village={selected} />
-        <Recommendations village={selected} regionName={region?.name ?? 'Selected Basin'} />
-      </div>
+        {/* 4. PREDICTION & 5. IMPACT SECTIONS */}
+        <div className="grid gap-5 lg:grid-cols-2 items-start">
+          {/* 4. PREDICTION SECTION (#prediction) */}
+          <section id="prediction" className="scroll-mt-32" data-testid="section-prediction">
+            <Factors detailedRisk={data.detailedRisk} village={selected} />
+          </section>
 
-      {/* Bottom Emergency Status Banner */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-slate-900/70 px-5 py-4 shadow-xl backdrop-blur-xl">
-        <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
-          <CircleDot size={16} className="text-emerald-400" />
-          <span>
-            Hydrological monitoring active for {region?.name ?? currentRegionId}. Broadcast channel operational.
-          </span>
+          {/* 5. IMPACT SECTION (#impact) */}
+          <section id="impact" className="scroll-mt-32" data-testid="section-impact">
+            <VillageLedger
+              villages={data.villages}
+              selectedId={data.selectedVillage}
+              onSelect={data.setSelectedVillage}
+            />
+          </section>
         </div>
 
-        {overall === 'CRITICAL' && (
-          <button
-            onClick={() => data.setIncidentOpen(true)}
-            data-testid="button-open-incident-order"
-            className="flex min-h-10 items-center gap-2 rounded-xl border border-rose-500 bg-rose-500/20 px-5 text-xs font-bold tracking-wider text-rose-300 pulse-soft hover:bg-rose-500/30 transition-all shadow-lg shadow-rose-500/20"
-          >
-            <AlertTriangle size={16} />
-            <span>{actionLabel}</span>
-          </button>
-        )}
+        {/* 6. RESPONSE & 7. DATA SECTIONS */}
+        <div className="grid gap-5 lg:grid-cols-2 items-start">
+          {/* 6. RESPONSE SECTION (#response) */}
+          <section id="response" className="scroll-mt-32 space-y-4" data-testid="section-response">
+            <Recommendations village={selected} regionName={region?.name ?? 'Selected Basin'} />
+            {/* Bottom Emergency Status Banner */}
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-slate-900/70 px-5 py-4 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center gap-2.5 text-xs text-slate-300 font-medium">
+                <CircleDot size={16} className="text-emerald-400 shrink-0" />
+                <span>
+                  Hydrological monitoring active for {region?.name ?? currentRegionId}. Broadcast channel operational.
+                </span>
+              </div>
+
+              {overall === 'CRITICAL' && (
+                <button
+                  onClick={() => data.setIncidentOpen(true)}
+                  data-testid="button-open-incident-order"
+                  className="flex min-h-10 items-center gap-2 rounded-xl border border-rose-500 bg-rose-500/20 px-5 text-xs font-bold tracking-wider text-rose-300 pulse-soft hover:bg-rose-500/30 transition-all shadow-lg shadow-rose-500/20"
+                >
+                  <AlertTriangle size={16} />
+                  <span>{actionLabel}</span>
+                </button>
+              )}
+            </div>
+          </section>
+
+          {/* 7. DATA SECTION (#data) */}
+          <section id="data" className="scroll-mt-32 space-y-4" data-testid="section-data">
+            {/* Telemetry Socket Station Card */}
+            <div className="glass-panel rounded-2xl p-4.5 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-white">
+                  <Radio size={16} className="text-teal-400" />
+                  <span>DATA INGESTION</span>
+                </div>
+                <span className="flex items-center gap-2 text-xs font-bold text-teal-400 bg-teal-500/10 px-2.5 py-1 rounded-full border border-teal-500/20">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      data.ws.isConnected ? 'bg-teal-400 pulse-soft' : 'bg-slate-500'
+                    }`}
+                  />
+                  <span>
+                    {data.isLoading
+                      ? 'CONNECTING'
+                      : data.ws.isConnected
+                      ? data.telemetry?.isSynthetic
+                        ? 'SIMULATION'
+                        : 'LIVE SOCKET'
+                      : 'OFFLINE'}
+                  </span>
+                </span>
+              </div>
+
+              <div className="mono mt-3 text-xs text-slate-300 font-semibold flex items-center justify-between border-t border-white/10 pt-3">
+                <span className="truncate">{data.telemetry?.sensorId ?? 'Awaiting sensor'}</span>
+                <span className="text-teal-400">
+                  {data.ws.isConnected ? '1.0 Hz stream' : 'Reconnecting…'}
+                </span>
+              </div>
+            </div>
+
+            {/* Telemetry Packet Feed */}
+            <Feed feedEvents={data.feedEvents} />
+          </section>
+        </div>
       </div>
 
       {/* Incident Modal */}
@@ -1780,36 +1922,86 @@ function CommandDeck({
 }
 
 function Home() {
-  const [view, setView] = useState<'overview' | 'deck'>('overview');
+  const [location, setLocation] = useLocation();
   const [regions, setRegions] = useState<Region[]>([]);
   const [regionId, setRegionId] = useState<string>('');
   const [isAudioOn, setIsAudioOn] = useState(true);
   const [manualOpen, setManualOpen] = useState(false);
 
+  // Sync routing state: /command-deck/:regionId or /
+  const isDeckRoute = location.startsWith('/command-deck');
+  const pathRegionId = isDeckRoute ? location.replace(/^\/command-deck\/?/, '').split('/')[0] : '';
+  const view: 'overview' | 'deck' = isDeckRoute ? 'deck' : 'overview';
+
   useEffect(() => {
     getRegions()
       .then((items) => {
-        setRegions(items);
-        if (items.length > 0) {
-          setRegionId((prev) => (prev && items.some((item) => item.region_id === prev) ? prev : items[0].region_id));
+        // Merge backend items with INITIAL_REGIONS
+        const combined: Region[] = INITIAL_REGIONS.map((init) => {
+          const found = items.find((i) => i.region_id === init.region_id);
+          if (found) return found;
+          return {
+            region_id: init.region_id,
+            name: init.name,
+            state: init.state,
+            district: init.state,
+            center: [init.latitude, init.longitude],
+            status: 'READY',
+          };
+        });
+        const extra = items.filter((i) => !INITIAL_REGIONS.some((init) => init.region_id === i.region_id));
+        const finalRegions = [...combined, ...extra];
+        setRegions(finalRegions);
+        if (finalRegions.length > 0) {
+          setRegionId((prev) => {
+            if (pathRegionId && finalRegions.some((item) => item.region_id === pathRegionId)) {
+              return pathRegionId;
+            }
+            return prev && finalRegions.some((item) => item.region_id === prev) ? prev : finalRegions[0].region_id;
+          });
         }
       })
       .catch((err) => {
         console.error('Failed to load regions list', err);
-        setRegions([]);
+        const fallback: Region[] = INITIAL_REGIONS.map((init) => ({
+          region_id: init.region_id,
+          name: init.name,
+          state: init.state,
+          district: init.state,
+          center: [init.latitude, init.longitude],
+          status: 'READY',
+        }));
+        setRegions(fallback);
+        if (fallback.length > 0) {
+          setRegionId(pathRegionId || fallback[0].region_id);
+        }
       });
-  }, []);
+  }, [pathRegionId]);
+
+  const handleSelectRegion = (id: string) => {
+    setRegionId(id);
+    setLocation(`/command-deck/${id}`);
+  };
+
+  const handleGoOverview = () => {
+    setLocation('/');
+  };
+
+  const handleGoDeck = () => {
+    const target = regionId || (regions[0]?.region_id ?? 'mandakini');
+    setLocation(`/command-deck/${target}`);
+  };
 
   // Keyboard Shortcuts (1 = Overview, 2 = Deck, Esc = Close)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '1') setView('overview');
-      if (e.key === '2') setView('deck');
+      if (e.key === '1') handleGoOverview();
+      if (e.key === '2') handleGoDeck();
       if (e.key === 'Escape') setManualOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [regionId, regions]);
 
   const region = useMemo(() => {
     return regions.find((item) => item.region_id === regionId) ?? regions[0];
@@ -1819,8 +2011,8 @@ function Home() {
     <div className="min-h-[100dvh] bg-[#06090e] text-slate-100 antialiased selection:bg-amber-500 selection:text-slate-950">
       <TopBar
         view={view}
-        onOverview={() => setView('overview')}
-        onDeck={() => setView('deck')}
+        onOverview={handleGoOverview}
+        onDeck={handleGoDeck}
         isAudioOn={isAudioOn}
         onToggleAudio={() => setIsAudioOn(!isAudioOn)}
         onOpenManual={() => setManualOpen(true)}
@@ -1828,13 +2020,17 @@ function Home() {
       />
 
       {view === 'overview' ? (
-        <Overview onEnter={() => setView('deck')} region={region} />
+        <Overview
+          onSelectRegion={handleSelectRegion}
+          regions={regions}
+          selectedRegionId={regionId}
+        />
       ) : (
         <CommandDeck
-          onOverview={() => setView('overview')}
+          onOverview={handleGoOverview}
           region={region}
           regions={regions}
-          onRegionChange={setRegionId}
+          onRegionChange={handleSelectRegion}
           isAudioOn={isAudioOn}
         />
       )}
@@ -1849,6 +2045,9 @@ function Router() {
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/overview" component={Home} />
+        <Route path="/command-deck" component={Home} />
+        <Route path="/command-deck/:regionId" component={Home} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>

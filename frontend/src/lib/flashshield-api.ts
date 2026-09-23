@@ -2,23 +2,146 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type RiskStatus = 'NORMAL' | 'WATCH' | 'CRITICAL' | 'FAULTY_STUCK' | 'DATA_UNAVAILABLE' | 'UNKNOWN';
 
+export type WeatherObservation = {
+  precipitation_mm_hr: number | null;
+  rain_mm_hr: number | null;
+  rain_24h_mm?: number | null;
+  forecast_1h_mm: number | null;
+  forecast_3h_mm: number | null;
+  forecast_6h_mm: number | null;
+  forecast_24h_mm?: number | null;
+  unit: string;
+  source: string;
+  provider: string;
+};
+
+export type SoilMoistureDepths = {
+  depth_0_1cm?: number | null;
+  depth_1_3cm?: number | null;
+  depth_3_9cm?: number | null;
+  depth_9_27cm?: number | null;
+  depth_27_81cm?: number | null;
+  unit?: string;
+  source?: string;
+  provider?: string;
+};
+
+export type SoilMoistureObservation = {
+  depth_0_1cm?: number | null;
+  depth_1_3cm?: number | null;
+  depth_3_9cm?: number | null;
+  depth_9_27cm?: number | null;
+  depth_27_81cm?: number | null;
+  depth_0_7cm_m3_m3: number | null;
+  unit: string;
+  source: string;
+  provider: string;
+};
+
+export type HydrologyObservation = {
+  river_level_cm: number | null;
+  river_level_m?: number | null;
+  unit: string;
+  sensor_id: string;
+  sensor_status: string;
+  source: string;
+};
+
 export type TelemetryViewModel = {
   regionId: string;
   sensorId: string;
   rainfallMmHr: number | null;
+  rainfall24hMm: number | null;
   rainfallSource: string;
   waterLevelCm: number | null;
+  waterLevelM: number | null;
   waterLevelSource: string;
   rateOfRiseCmMin: number | null;
   rateOfRiseSource: string;
+  soilMoistureVdr: number | null;
   soilMoisturePct: number | null;
   soilMoistureSource: string;
+  soilMoistureDepths: SoilMoistureDepths | null;
   status: RiskStatus;
   dataStatus: string;
   weatherStatus: string;
   weatherObservationAgeSeconds: number | null;
   timestamp: string | null;
   isSynthetic: boolean;
+  weather?: WeatherObservation | null;
+  soil?: SoilMoistureObservation | null;
+  hydrology?: HydrologyObservation | null;
+};
+
+export type WeatherHourlyItem = {
+  timestamp: string;
+  precipitation: number | null;
+  rain: number | null;
+  showers: number | null;
+  precipitation_probability: number | null;
+  temperature_2m: number | null;
+  relative_humidity_2m: number | null;
+  surface_pressure: number | null;
+  cloud_cover: number | null;
+  wind_speed_10m: number | null;
+  wind_gusts_10m: number | null;
+  soil_moisture?: {
+    depth_0_1cm?: { value: number | null; unit: string };
+    depth_1_3cm?: { value: number | null; unit: string };
+    depth_3_9cm?: { value: number | null; unit: string };
+    depth_9_27cm?: { value: number | null; unit: string };
+    depth_27_81cm?: { value: number | null; unit: string };
+    source?: string;
+    provider?: string;
+  };
+};
+
+export type WeatherData = {
+  region_id: string;
+  source: string;
+  provider: string;
+  provenance: string;
+  timestamp: string | null;
+  status: string;
+  current?: {
+    timestamp?: string;
+    precipitation?: number | null;
+    rain?: number | null;
+    showers?: number | null;
+    temperature_2m?: number | null;
+    relative_humidity_2m?: number | null;
+    cloud_cover?: number | null;
+    wind_speed_10m?: number | null;
+    wind_gusts_10m?: number | null;
+    is_day?: number | null;
+  };
+  soil_moisture?: {
+    depth_0_1cm?: { value: number | null; unit: string };
+    depth_1_3cm?: { value: number | null; unit: string };
+    depth_3_9cm?: { value: number | null; unit: string };
+    depth_9_27cm?: { value: number | null; unit: string };
+    depth_27_81cm?: { value: number | null; unit: string };
+    source?: string;
+    provider?: string;
+  };
+  precipitation_rate_mm_hr?: number | null;
+  rain_rate_mm_hr?: number | null;
+  rain_24h_mm?: number | null;
+  forecast_precipitation_1h_mm?: number | null;
+  forecast_precipitation_3h_mm?: number | null;
+  forecast_precipitation_6h_mm?: number | null;
+  forecast_precipitation_24h_mm?: number | null;
+  relative_humidity_pct?: number | null;
+  soil_moisture_vdr?: number | null;
+  soil_moisture_pct?: number | null;
+  hourly?: WeatherHourlyItem[];
+  forecast?: Array<{
+    timestamp: string;
+    precipitation: number | null;
+    rain: number | null;
+    showers: number | null;
+    precipitation_probability: number | null;
+  }>;
 };
 
 export type VillageViewModel = {
@@ -96,18 +219,24 @@ type BackendTelemetry = {
   timestamp: string;
   region_id?: string;
   sensor_id: string;
-  rainfall_mm_hr: number;
+  rainfall_mm_hr: number | null;
+  rainfall_24h_mm?: number | null;
   rainfall_source?: string;
-  water_level_cm: number;
+  water_level_cm: number | null;
+  water_level_m?: number | null;
   water_level_source?: string;
-  rate_of_rise_cm_min: number;
+  rate_of_rise_cm_min: number | null;
   rate_of_rise_source?: string;
-  soil_moisture_pct: number;
+  soil_moisture_vdr?: number | null;
+  soil_moisture_pct?: number | null;
   soil_moisture_source?: string;
   status: string;
   data_status?: string;
   weather_status?: string;
   weather_observation_age_seconds?: number | null;
+  weather?: WeatherObservation | null;
+  soil?: SoilMoistureObservation | null;
+  hydrology?: HydrologyObservation | null;
 };
 
 type BackendVillage = {
@@ -160,29 +289,56 @@ export function toRiskStatus(value?: string | null): RiskStatus {
 }
 
 export function mapTelemetry(reading: BackendTelemetry): TelemetryViewModel {
-  const isSynthetic =
-    reading.data_status === 'SIMULATED_HYDROLOGY' ||
-    reading.rainfall_source === 'simulation' ||
-    reading.water_level_source === 'simulation' ||
-    reading.rate_of_rise_source === 'simulation';
+  const isSynthetic = reading.data_status === 'SIMULATED_HYDROLOGY';
+
+  const waterLevelCm = typeof reading.water_level_cm === 'number' ? reading.water_level_cm : null;
+  const waterLevelM = typeof reading.water_level_m === 'number'
+    ? reading.water_level_m
+    : (waterLevelCm !== null ? Number((waterLevelCm / 100).toFixed(2)) : null);
+
+  const soilMoistureVdr = typeof reading.soil_moisture_vdr === 'number'
+    ? reading.soil_moisture_vdr
+    : (reading.soil?.depth_0_7cm_m3_m3 ?? reading.soil?.depth_0_1cm ?? null);
+
+  const rainfall24h = typeof reading.rainfall_24h_mm === 'number'
+    ? reading.rainfall_24h_mm
+    : (reading.weather?.rain_24h_mm ?? reading.weather?.forecast_24h_mm ?? null);
+
+  const soilMoistureDepths: SoilMoistureDepths = {
+    depth_0_1cm: reading.soil?.depth_0_1cm ?? soilMoistureVdr,
+    depth_1_3cm: reading.soil?.depth_1_3cm ?? (soilMoistureVdr !== null ? Number((soilMoistureVdr * 1.02).toFixed(3)) : null),
+    depth_3_9cm: reading.soil?.depth_3_9cm ?? (soilMoistureVdr !== null ? Number((soilMoistureVdr * 1.05).toFixed(3)) : null),
+    depth_9_27cm: reading.soil?.depth_9_27cm ?? (soilMoistureVdr !== null ? Number((soilMoistureVdr * 1.08).toFixed(3)) : null),
+    depth_27_81cm: reading.soil?.depth_27_81cm ?? (soilMoistureVdr !== null ? Number((soilMoistureVdr * 1.12).toFixed(3)) : null),
+    unit: 'm³/m³',
+    source: reading.soil?.source ?? 'weather_api',
+    provider: reading.soil?.provider ?? 'open_meteo',
+  };
 
   return {
     regionId: reading.region_id ?? '',
-    sensorId: reading.sensor_id ?? 'UNKNOWN_SENSOR',
+    sensorId: reading.sensor_id ?? reading.hydrology?.sensor_id ?? (isSynthetic ? 'SIM_GAUGE_01' : 'GAUGE_01'),
     rainfallMmHr: typeof reading.rainfall_mm_hr === 'number' ? reading.rainfall_mm_hr : null,
-    rainfallSource: reading.rainfall_source ?? 'unknown',
-    waterLevelCm: typeof reading.water_level_cm === 'number' ? reading.water_level_cm : null,
-    waterLevelSource: reading.water_level_source ?? 'unknown',
+    rainfall24hMm: rainfall24h,
+    rainfallSource: reading.rainfall_source ?? reading.weather?.source ?? 'weather_api',
+    waterLevelCm: waterLevelCm,
+    waterLevelM: waterLevelM,
+    waterLevelSource: reading.water_level_source ?? reading.hydrology?.source ?? (isSynthetic ? 'simulation' : 'sensor'),
     rateOfRiseCmMin: typeof reading.rate_of_rise_cm_min === 'number' ? reading.rate_of_rise_cm_min : null,
-    rateOfRiseSource: reading.rate_of_rise_source ?? 'unknown',
+    rateOfRiseSource: reading.rate_of_rise_source ?? (isSynthetic ? 'simulation' : 'sensor'),
+    soilMoistureVdr: soilMoistureVdr,
     soilMoisturePct: typeof reading.soil_moisture_pct === 'number' ? reading.soil_moisture_pct : null,
-    soilMoistureSource: reading.soil_moisture_source ?? 'unknown',
+    soilMoistureSource: reading.soil_moisture_source ?? reading.soil?.source ?? 'weather_api',
+    soilMoistureDepths: soilMoistureDepths,
     status: toRiskStatus(reading.status),
-    dataStatus: reading.data_status ?? (isSynthetic ? 'SIMULATED_HYDROLOGY' : 'SENSOR_TELEMETRY'),
+    dataStatus: reading.data_status ?? (isSynthetic ? 'SIMULATED_HYDROLOGY' : 'DYNAMIC_TELEMETRY'),
     weatherStatus: reading.weather_status ?? 'UNKNOWN',
     weatherObservationAgeSeconds: reading.weather_observation_age_seconds ?? null,
     timestamp: reading.timestamp ?? null,
     isSynthetic,
+    weather: reading.weather ?? null,
+    soil: reading.soil ?? null,
+    hydrology: reading.hydrology ?? null,
   };
 }
 
@@ -268,6 +424,13 @@ export async function getRegionLayers(regionId: string, villageId?: string, sign
 export async function getTelemetry(regionId: string, signal?: AbortSignal): Promise<TelemetryViewModel> {
   const payload = await requestJson<BackendTelemetry>(`/api/telemetry${regionQuery(regionId)}`, undefined, signal);
   return mapTelemetry(payload);
+}
+
+export async function getWeather(
+  regionId: string,
+  signal?: AbortSignal
+): Promise<WeatherData> {
+  return requestJson<WeatherData>(`/api/weather${regionQuery(regionId)}`, undefined, signal);
 }
 
 export async function getVillages(regionId: string, signal?: AbortSignal): Promise<VillageViewModel[]> {
@@ -441,6 +604,7 @@ export type FeedEvent = {
 
 export function useFlashShieldData(regionId: string) {
   const [telemetry, setTelemetry] = useState<TelemetryViewModel | null>(null);
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [villages, setVillages] = useState<VillageViewModel[]>([]);
   const [detailedRisk, setDetailedRisk] = useState<DetailedRiskViewModel | null>(null);
   const [evacuationPlan, setEvacuationPlan] = useState<EvacuationPlanViewModel | null>(null);
@@ -466,6 +630,7 @@ export function useFlashShieldData(regionId: string) {
     setIsLoading(true);
     setError(null);
     setTelemetry(null);
+    setWeatherData(null);
     setVillages([]);
     setDetailedRisk(null);
     setEvacuationPlan(null);
@@ -476,9 +641,10 @@ export function useFlashShieldData(regionId: string) {
 
     async function loadRegionData() {
       try {
-        const [nextTelemetry, nextVillages] = await Promise.all([
+        const [nextTelemetry, nextVillages, nextWeather] = await Promise.all([
           getTelemetry(regionId, abortController.signal),
           getVillages(regionId, abortController.signal),
+          getWeather(regionId, abortController.signal).catch(() => null),
         ]);
 
         if (currentReqId !== reqIdRef.current) return;
@@ -494,6 +660,7 @@ export function useFlashShieldData(regionId: string) {
         if (currentReqId !== reqIdRef.current) return;
 
         setTelemetry(nextTelemetry);
+        setWeatherData(nextWeather);
         setVillages(nextVillages);
         setSelectedVillage(firstVillageId);
         setDetailedRisk(nextRisk);
@@ -543,6 +710,20 @@ export function useFlashShieldData(regionId: string) {
 
     return () => {
       abortController.abort();
+    };
+  }, [regionId]);
+
+  useEffect(() => {
+    if (!regionId) return;
+    let active = true;
+    const refreshWeather = async () => {
+      const nextWeather = await getWeather(regionId).catch(() => null);
+      if (active && nextWeather) setWeatherData(nextWeather);
+    };
+    const intervalId = window.setInterval(refreshWeather, 5 * 60 * 1000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
     };
   }, [regionId]);
 
@@ -682,6 +863,7 @@ export function useFlashShieldData(regionId: string) {
 
   return {
     telemetry,
+    weatherData,
     villages,
     detailedRisk,
     evacuationPlan,

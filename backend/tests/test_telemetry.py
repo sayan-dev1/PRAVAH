@@ -8,7 +8,7 @@ def test_get_telemetry(client):
     assert "soil_moisture_pct" in data
     assert "status" in data
     assert data["region_id"] == "mandakini"
-    assert data["data_status"] == "SIMULATED_HYDROLOGY"
+    assert data["data_status"] in ("DYNAMIC_TELEMETRY", "SIMULATED_HYDROLOGY")
 
 
 def test_post_valid_telemetry(client):

@@ -252,6 +252,34 @@ export function MapControls({
                   </div>
                 )}
               </div>
+
+              {/* 7. Analytical GIS Layers (Section 11) */}
+              <div className="rounded-xl border border-white/5 bg-slate-900/40 p-2 space-y-1.5 mt-1.5">
+                <div className="text-[10px] font-bold tracking-wider text-slate-400 flex justify-between items-center px-1">
+                  <span>ANALYTICAL GIS LAYERS</span>
+                  <span className="mono text-[8px] text-amber-400 bg-amber-500/10 px-1 py-0.2 rounded">
+                    COG / TIF
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-[10px]">
+                  <div className="rounded-lg bg-slate-950/60 p-1.5 border border-white/5">
+                    <span className="text-slate-400 block font-bold">ELEVATION</span>
+                    <span className="mono text-[9px] text-teal-300">dem.tif</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-950/60 p-1.5 border border-white/5">
+                    <span className="text-slate-400 block font-bold">SLOPE</span>
+                    <span className="mono text-[9px] text-teal-300">slope.tif</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-950/60 p-1.5 border border-white/5">
+                    <span className="text-slate-400 block font-bold">TWI</span>
+                    <span className="mono text-[9px] text-teal-300">twi.tif</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-950/60 p-1.5 border border-white/5">
+                    <span className="text-slate-400 block font-bold">FLOW ACCUM</span>
+                    <span className="mono text-[9px] text-teal-300">flow_accum.tif</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

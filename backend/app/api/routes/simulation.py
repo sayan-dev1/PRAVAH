@@ -43,7 +43,9 @@ async def trigger_cloudburst(request: SimulationRequest | None = None) -> Simula
 
 @router.post("/reset")
 def reset_simulation(region_id: str = "mandakini") -> dict[str, str]:
+	from app.services.anomaly_filter import anomaly_filter
 	state_engine.reset(region_id)
+	anomaly_filter.reset(region_id)
 	return {"status": "reset"}
 
 
