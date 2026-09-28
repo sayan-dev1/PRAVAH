@@ -1,4 +1,3 @@
-```markdown
 # PRAVAH — Predictive River & Valley Hazard Alert System
 
 > **GIS-enabled flash-flood early warning and tactical evacuation platform for hilly regions**
@@ -20,7 +19,6 @@ Instead of stopping at *"a flood may happen"*, PRAVAH is designed to answer:
 - Why did the ML model assign the current risk?
 - Is the underlying data live, modelled, derived, GIS-based, or unavailable?
 
-```
 
 ---
 
